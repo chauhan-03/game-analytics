@@ -1,5 +1,7 @@
 # Product documents
 
+**Live dashboard:** https://chauhan-03.github.io/game-analytics/ · **Code:** https://github.com/chauhan-03/game-analytics
+
 Decision documents that turn the analysis into features, experiments and launches.
 Written for game teams: product, design, engineering, art, analytics, CRM and marketing.
 

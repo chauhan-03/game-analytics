@@ -1,5 +1,7 @@
 # Game Analytics: from player data to product decisions
 
+**Live dashboard:** https://chauhan-03.github.io/game-analytics/ · **Code:** https://github.com/chauhan-03/game-analytics
+
 A game product analytics project covering the whole loop:
 - **Telemetry:** 1.4M players across onboarding, retention, engagement and monetization.
 - **What players say:** 25,719 app-store reviews mined for pain points and delights.

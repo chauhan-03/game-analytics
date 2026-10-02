@@ -1,5 +1,7 @@
 # Power BI
 
+**Live dashboard:** https://chauhan-03.github.io/game-analytics/ · **Code:** https://github.com/chauhan-03/game-analytics
+
 `GameAnalytics.pbip` is a complete **Power BI Project**. It has the data model, every
 measure and six report pages with visuals already bound to the data. Open it in Power BI
 Desktop and refresh. `src/run_analysis.py` regenerates it on every run, so it never

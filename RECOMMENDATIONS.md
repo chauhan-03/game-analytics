@@ -1,5 +1,7 @@
 # Product recommendations
 
+**Live dashboard:** https://chauhan-03.github.io/game-analytics/ · **Code:** https://github.com/chauhan-03/game-analytics
+
 Each recommendation names the finding behind it, the change to make, and the metric
 that would show it worked. Numbers come from [outputs/findings.md](outputs/findings.md).
 Where a finding is a correlation, the recommendation is a test rather than a rollout.
