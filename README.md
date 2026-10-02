@@ -12,9 +12,9 @@ A game product analytics project covering the whole loop:
 | Product recommendations | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) |
 | Product documents: funnel review, feature spec, campaign brief, competitive review, personas and survey, go-to-market | [product/](product/README.md) |
 | Interactive web dashboard with a what-if planner, an API-powered helper and a mini-game | `docs/index.html` ([details](#live-dashboard)) |
-| Power BI Project: model, 37 DAX measures, 6 report pages | [powerbi/](powerbi/README.md) |
+| Power BI Project: model, 37 DAX measures, 6 report pages; one-command publish to Power BI online | [powerbi/](powerbi/README.md) |
 | SQL for every headline KPI | [sql/](sql/) |
-| 514 automated tests, including a 143-case data regression suite | [tests/](#tests) |
+| 530 automated tests, including a 143-case data regression suite | [tests/](#tests) |
 
 ---
 
@@ -70,7 +70,7 @@ More charts in [outputs/charts](outputs/charts).
 | Track feature scope, progress and utilization | [Feature tracker](product/feature_tracker.csv) (Sheets/Excel); utilization events in spec §6 |
 | Product documentation that helps teams decide | Everything in [product/](product/README.md) is written for cross-functional readers |
 | SQL, Excel/Sheets, Power BI | [sql/](sql/) (checked against Python), [powerbi/](powerbi/README.md), CSV exports |
-| Attention to detail | 514 tests, including a regression baseline of 141 values and checks that the doc numbers match the data |
+| Attention to detail | 530 tests, including a regression baseline of 141 values and checks that the doc numbers match the data |
 
 ---
 
@@ -147,7 +147,8 @@ pip install -r requirements.txt
 python src/download_data.py    # ~330 MB into data/raw/
 python src/run_analysis.py     # ~25 s: findings, charts, Power BI tables + project, dashboard
 python src/sql_kpis.py         # ~40 s: loads SQLite, runs sql/*.sql into outputs/sql/
-python -m pytest               # 514 tests, ~2 min
+python src/powerbi_publish.py --client-id <app-id> --tenant <tenant-id>   # optional: Power BI online
+python -m pytest               # 530 tests, ~2 min
 ```
 
 ## Tests
@@ -158,6 +159,7 @@ python -m pytest               # 514 tests, ~2 min
 | `test_powerbi_project.py` | 99 | Every Power BI JSON file validates against Microsoft's schemas; every visual field and DAX reference resolves; no name clashes |
 | `test_metrics.py` | 94 | Every metric on hand-worked examples, and every segment/tier/bucket boundary |
 | `test_real_data.py` | 56 | Data-quality checks; KPIs recomputed straight from the raw CSVs and compared |
+| `test_powerbi_publish.py` | 16 | The cloud copy reads only from the web (no local-file sources), every table and visual is uploaded, the report binds to the published model |
 | `test_powerbi.py` | 33 | `measures.dax` references only exported columns and KPIs |
 | `test_sql.py` | 24 | SQL answers equal the Python pipeline's |
 | `test_reviews.py` | 20 | Review theme rules on hand-written examples, including false positives |
@@ -173,12 +175,12 @@ values exactly. Moving the analysis cutoff by one day fails 38 of them.
 
 ```
 src/            data.py · metrics.py · stats.py · reviews.py · experiment.py · sql_kpis.py
-                powerbi_project.py · run_analysis.py · download_data.py
+                powerbi_project.py · powerbi_publish.py · run_analysis.py · download_data.py
 sql/            01-06 *.sql: retention, onboarding, DAU, offer test, gate test, churn by early rounds
 product/        funnel review · feature spec · campaign brief · competitive review · personas · GTM · tracker
 powerbi/        GameAnalytics.pbip (generated) · measures.dax · README
 dashboard/      template.html → docs/index.html (generated, GitHub Pages)
 coach-proxy/    Cloudflare Worker that lets Coach call your model API without exposing the key
 outputs/        findings.md · charts/ · powerbi/ · sql/   (generated)
-tests/          514 tests · regression_baseline.json · schemas/ (Microsoft PBIR schemas)
+tests/          530 tests · regression_baseline.json · schemas/ (Microsoft PBIR schemas)
 ```

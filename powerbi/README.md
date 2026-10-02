@@ -16,7 +16,58 @@ drifts from the analysis.
 
 **On a Mac:** Power BI Desktop is Windows-only. You have two options:
 - Run it in a Windows VM (Parallels, UTM).
-- Connect this GitHub repo to a Microsoft Fabric workspace through Git integration. Fabric reads the `.pbip` folder format directly.
+- Publish it to Power BI online with `src/powerbi_publish.py` (next section).
+
+## Power BI online, connected to Claude Code
+
+`src/powerbi_publish.py` publishes this project to Power BI online (no Desktop needed, works
+from a Mac). The model reads the CSVs from this GitHub repo, so the service refreshes it
+without a gateway. Microsoft's hosted Power BI MCP server then lets Claude Code query the
+live model in DAX.
+
+**One-time setup** (needs a Microsoft work or school account; Gmail is not accepted):
+
+1. **Capacity:** at [app.fabric.microsoft.com](https://app.fabric.microsoft.com), start the
+   free Fabric trial (account menu > Free trial). Publishing through the API needs a
+   workspace on a capacity.
+2. **Tenant setting:** in the Power BI admin portal > Tenant settings, enable
+   **Users can use the Power BI Model Context Protocol server endpoint (preview)**.
+3. **App registration** in the [Entra admin center](https://entra.microsoft.com) > App registrations > New registration:
+   - **Account type:** single tenant. Copy the **Application (client) ID** and the **Directory (tenant) ID**.
+   - **Authentication** > Add a platform > **Mobile and desktop applications**, with two redirect URIs:
+     `http://localhost` (publish script) and `http://localhost:8765/callback` (Claude Code).
+   - **API permissions** > Add > **Power BI Service** > Delegated:
+     `Workspace.ReadWrite.All`, `Item.ReadWrite.All`, `Dataset.ReadWrite.All`, `Capacity.Read.All`,
+     `Dataset.Read.All`, `Workspace.Read.All`, `SemanticModel.ReadWrite.All`, `MLModel.Execute.All`.
+     Then **Grant admin consent**.
+
+**Publish** (rerun any time to update the model and report in place):
+
+```bash
+python src/powerbi_publish.py --client-id <app-id> --tenant <tenant-id>
+```
+
+It signs you in through the browser. It then creates the "Game Analytics" workspace, uploads
+the model, sets the GitHub source to anonymous, refreshes, and uploads the report. The report
+link and IDs go to `powerbi/online.json`.
+
+**Connect Claude Code** by adding `.mcp.json` at the repo root (git-ignored), then run `/mcp`
+in Claude Code to sign in:
+
+```json
+{
+  "mcpServers": {
+    "powerbi": {
+      "type": "http",
+      "url": "https://api.fabric.microsoft.com/v1/mcp/powerbi",
+      "oauth": { "clientId": "<app-id>", "callbackPort": 8765 }
+    }
+  }
+}
+```
+
+Claude can then read the model's schema and answer questions by running DAX against the
+published semantic model. The ID is in `powerbi/online.json`.
 
 ## What's inside
 
