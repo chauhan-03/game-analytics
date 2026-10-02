@@ -1,0 +1,112 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "0e701126b5f9997598d5",
+  "position": {
+    "x": 728,
+    "y": 128,
+    "z": 5000,
+    "width": 536,
+    "height": 576,
+    "tabOrder": 5000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "review_games"
+                    }
+                  },
+                  "Property": "game_name"
+                }
+              },
+              "queryRef": "review_games.game_name",
+              "nativeQueryRef": "game_name"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "review_games"
+                        }
+                      },
+                      "Property": "reviews"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(review_games.reviews)",
+              "nativeQueryRef": "Sum of reviews"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "review_games"
+                        }
+                      },
+                      "Property": "avg_stars"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Avg(review_games.avg_stars)",
+              "nativeQueryRef": "Avg of avg_stars"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "review_games"
+                    }
+                  },
+                  "Property": "top_pain"
+                }
+              },
+              "queryRef": "review_games.top_pain",
+              "nativeQueryRef": "top_pain"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Where each competitor is weakest'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "757ec63de938e0ffab23",
+  "position": {
+    "x": 16,
+    "y": 128,
+    "z": 6000,
+    "width": 616,
+    "height": 576,
+    "tabOrder": 6000
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "new_players"
+                    }
+                  },
+                  "Property": "first_return_day"
+                }
+              },
+              "queryRef": "new_players.first_return_day",
+              "nativeQueryRef": "first_return_day"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "new_players"
+                    }
+                  },
+                  "Property": "Players (30-day window)"
+                }
+              },
+              "queryRef": "new_players.Players (30-day window)",
+              "nativeQueryRef": "Players (30-day window)"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'When new players first come back (day)'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

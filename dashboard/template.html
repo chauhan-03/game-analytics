@@ -1,0 +1,1416 @@
+<title>Game Analytics Dashboard</title>
+<meta name="description" content="How players start, come back, play and spend in a mobile game, explained in plain words, with a what-if power-up lab.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: game-hub console. Hero with a big condensed title, a sticky level menu, then a
+   12-column grid of dark glass panels over a live deep-space scene with coloured nebula glows. One committed
+   dark look; red is the chrome accent only, charts use the validated blue / orange / aqua. */
+:root {
+  color-scheme: dark;
+  --bg: #07070d;
+  --ring: #101019;
+  --surface: rgba(18, 18, 32, 0.6);
+  --surface-2: rgba(30, 30, 52, 0.66);
+  --glass-blur: blur(14px);
+  --ink: #ffffff;
+  --ink-2: #d5d7e3;
+  --muted: #a1a4b8;
+  --grid: rgba(255, 255, 255, 0.09);
+  --axis: rgba(205, 208, 225, 0.32);
+  --border: rgba(255, 255, 255, 0.13);
+  --accent: #ff4747;
+  --accent-soft: rgba(255, 71, 71, 0.14);
+  --series-a: #3987e5;
+  --series-b: #d95926;
+  --series-c: #199e70;
+  --gold: #f5b82e;
+  --wash: rgba(57, 135, 229, 0.16);
+  --good: #2fbf4a;
+  --warn: #f5b82e;
+  --crit: #ff6b6b;
+  --tip-bg: #ffffff;
+  --tip-ink: #0a0b0f;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-ui: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: linear-gradient(160deg, #0d0918 0%, #07070d 50%, #050a12 100%); }
+
+/* ---------- live background: drifting nebula glows + starfield canvas */
+.bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.blob { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(90px); opacity: 0.34; will-change: transform; }
+.b1 { background: radial-gradient(circle, #ff4747 0%, transparent 62%); top: -24vmax; right: -18vmax; animation: drift1 26s ease-in-out infinite alternate; }
+.b2 { background: radial-gradient(circle, #3987e5 0%, transparent 62%); top: -10vmax; left: -22vmax; animation: drift2 32s ease-in-out infinite alternate; }
+.b3 { background: radial-gradient(circle, #199e70 0%, transparent 62%); bottom: -28vmax; left: -10vmax; animation: drift3 38s ease-in-out infinite alternate; }
+.b4 { background: radial-gradient(circle, #8c5aff 0%, transparent 62%); bottom: -22vmax; right: -20vmax; animation: drift4 30s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(-22vmax, 18vmax) scale(1.2); } }
+@keyframes drift2 { to { transform: translate(26vmax, 14vmax) scale(0.85); } }
+@keyframes drift3 { to { transform: translate(30vmax, -20vmax) scale(1.15); } }
+@keyframes drift4 { to { transform: translate(-24vmax, -16vmax) scale(0.9); } }
+#bg-space { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---------- coach (assistant) */
+.fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 30; display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff;
+  background: var(--accent); border: 0; border-radius: 999px; padding: 10px 18px 10px 10px; cursor: pointer;
+  box-shadow: 0 10px 30px rgba(255, 71, 71, 0.45), 0 0 0 4px rgba(255, 71, 71, 0.18); transition: transform 0.15s; }
+.fab:hover { transform: translateY(-2px) scale(1.03); }
+.fab .face { width: 34px; height: 34px; border-radius: 50%; background: #ffffff; display: grid; place-items: center; }
+.fab .face svg { width: 22px; height: 22px; }
+.coach { position: fixed; right: 18px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 30; width: min(380px, calc(100vw - 32px));
+  max-height: min(600px, calc(100vh - 120px)); display: flex; flex-direction: column;
+  background: rgba(14, 14, 26, 0.88); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); overflow: hidden; }
+.coach-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.coach-head .face { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; flex: none; }
+.coach-head .face svg { width: 22px; height: 22px; }
+.coach-head b { font-family: var(--font-display); font-size: 19px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; display: block; line-height: 1; }
+.coach-head small { color: var(--muted); font-size: 12px; }
+.coach-head .x { margin-left: auto; font: inherit; font-size: 20px; line-height: 1; color: var(--ink-2); background: none; border: 0; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.coach-head .x:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.chat { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.msg { max-width: 88%; padding: 9px 12px; border-radius: 12px; font-size: 14.5px; line-height: 1.45; }
+.msg.bot { background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; align-self: flex-start; }
+.msg.me { background: var(--accent); color: #ffffff; border-bottom-right-radius: 4px; align-self: flex-end; }
+.msg .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.msg .acts button { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.msg .acts button:hover { border-color: var(--accent); }
+.msg .acts button.play { background: var(--gold); color: #1a1408; border-color: var(--gold); }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 14px 10px; scrollbar-width: none; }
+.chips button { flex: none; font: inherit; font-size: 13px; color: var(--ink-2); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.chips button:hover { color: var(--ink); border-color: var(--ink-2); }
+.ask { display: flex; gap: 8px; padding: 10px 14px 14px; border-top: 1px solid var(--border); }
+.ask input { flex: 1; min-width: 0; font: inherit; font-size: 14.5px; color: var(--ink); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; }
+.ask input::placeholder { color: var(--muted); }
+.ask button { font-family: var(--font-display); font-weight: 800; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff; background: var(--accent); border: 0; border-radius: 999px; padding: 0 16px; cursor: pointer; }
+
+/* ---------- Neon Dash (mini game) */
+.arcade { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgba(3, 3, 8, 0.74); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.cabinet { width: min(400px, 100%); display: grid; gap: 12px; background: rgba(14, 14, 26, 0.94); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
+.cabinet-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.cabinet-head b { font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1; }
+.cabinet-head b span { color: var(--accent); }
+.cabinet canvas { width: 100%; height: auto; aspect-ratio: 360 / 480; max-width: 100%; border-radius: 10px; display: block; background: #0a0a16; touch-action: none; }
+.pad { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pad button { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: #ffffff; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; touch-action: manipulation; }
+.pad button:active { background: var(--accent); }
+.how { font-size: 13px; color: var(--muted); margin: 0; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) { .blob { animation: none; } }
+
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- hero */
+.hero { border-bottom: 1px solid var(--border); }
+.hero .wrap { padding-block: 36px 26px; display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: flex-end; justify-content: space-between; }
+.kicker { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(40px, 7vw, 68px); line-height: 0.92; letter-spacing: 0.01em; text-transform: uppercase; margin: 0; }
+.lede { color: var(--ink-2); font-size: 17px; margin: 12px 0 0; max-width: 52ch; }
+.window { font-family: var(--font-data); font-size: 12px; color: var(--muted); display: grid; gap: 2px; text-align: right; }
+.window b { color: var(--ink); font-weight: 500; }
+
+/* ---------- level menu */
+nav.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: rgba(9, 9, 18, 0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+.tablist { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.tab { font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: none; border: 0; padding: 14px 14px 11px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 8px; align-items: baseline; }
+.tab:hover { color: var(--ink); }
+.tab small { font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab[aria-selected="true"] small { color: var(--accent); }
+
+/* ---------- pages */
+main { padding-block: 24px 48px; }
+.page { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-7 { grid-column: span 7; }
+.span-6 { grid-column: span 6; } .span-5 { grid-column: span 5; } .span-4 { grid-column: span 4; }
+@media (max-width: 900px) { .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; } }
+
+.intro { grid-column: span 12; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+.intro h2 { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; margin: 0; }
+.intro p { color: var(--ink-2); margin: 6px 0 0; max-width: 60ch; font-size: 16px; }
+
+.panel { background: var(--surface); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.panel-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; justify-content: space-between; }
+.panel h3 { font-family: var(--font-display); font-weight: 700; font-size: 21px; letter-spacing: 0.02em; text-transform: uppercase; margin: 0; text-wrap: balance; line-height: 1.1; }
+.panel .sub { color: var(--ink-2); font-size: 14px; margin: 4px 0 0; max-width: 62ch; }
+.hint { font-size: 12.5px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.hint::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+/* ---------- stat tiles (buttons: click to jump) */
+.kpis { grid-column: span 12; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpi { font: inherit; color: inherit; text-align: left; background: var(--surface); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+button.kpi { cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+button.kpi:hover { border-color: var(--accent); transform: translateY(-2px); }
+.kpi .label { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.kpi .value { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1; letter-spacing: 0.01em; }
+.kpi .note { font-size: 13.5px; color: var(--ink-2); }
+.kpi .go { font-size: 12px; color: var(--accent); font-weight: 600; margin-top: 4px; }
+
+/* ---------- 100 players picture */
+.hundred { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px 32px; align-items: center; }
+.dots { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; max-width: 330px; width: 100%; }
+.dot { aspect-ratio: 1; border-radius: 50%; background: var(--axis); max-width: 100%; }
+.dot.back { background: var(--series-a); }
+.dot.buy { background: var(--gold); box-shadow: 0 0 0 3px rgba(245, 184, 46, 0.25); }
+.dot-key { display: grid; gap: 14px; }
+.dot-key div { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 12px; align-items: start; }
+.dot-key i { width: 16px; height: 16px; border-radius: 50%; margin-top: 4px; }
+.dot-key b { font-family: var(--font-display); font-size: 30px; font-weight: 800; line-height: 1; display: block; }
+.dot-key span { color: var(--ink-2); }
+
+/* ---------- controls */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; background: rgba(0, 0, 0, 0.4); }
+.seg button { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 5px 14px; cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #ffffff; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; font-size: 14px; color: var(--ink-2); }
+select { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+input[type="checkbox"], input[type="range"] { accent-color: var(--accent); }
+label.check { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.legend i.line { height: 3px; border-radius: 2px; width: 16px; }
+
+/* ---------- charts */
+.chart { width: 100%; min-height: 120px; position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); }
+.chart .lbl { fill: var(--ink-2); font-weight: 500; }
+.chart .lbl.sel { fill: var(--ink); font-weight: 600; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .baseline { stroke: var(--axis); stroke-width: 1; }
+.chart .hit { fill: transparent; cursor: crosshair; }
+.chart .bar-hit { fill: transparent; }
+.chart .bar-hit.pick { cursor: pointer; }
+.chart .bar-hit:focus-visible { outline: none; stroke: var(--accent); stroke-width: 2; }
+.chart .band { fill: var(--wash); }
+.chart .bar.on { opacity: 0.8; }
+
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); font-size: 13px; line-height: 1.45; padding: 8px 11px; border-radius: 6px; max-width: 270px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+#tip .t { font-weight: 600; margin-bottom: 2px; }
+#tip .r { display: flex; gap: 10px; align-items: center; justify-content: space-between; font-family: var(--font-data); font-size: 12px; }
+#tip .r i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+
+/* ---------- detail card (what you clicked) */
+.detail { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; }
+.detail .eyebrow { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.detail h4 { font-family: var(--font-display); font-size: 24px; font-weight: 800; text-transform: uppercase; margin: 0; line-height: 1.05; }
+.detail p { margin: 0; color: var(--ink-2); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 16px; }
+.fact b { display: block; font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.05; }
+.fact span { font-size: 13px; color: var(--muted); }
+
+details.data summary { cursor: pointer; font-size: 13px; color: var(--muted); width: fit-content; }
+details.data summary:hover { color: var(--ink); }
+.tablewrap { overflow-x: auto; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { font-family: var(--font-display); font-weight: 700; color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+td.num { font-family: var(--font-data); font-size: 12.5px; }
+
+.heat td { font-family: var(--font-data); font-size: 12px; text-align: center; padding: 6px; border-bottom: 2px solid transparent; border-right: 2px solid transparent; background-clip: padding-box; }
+.heat td:first-child { text-align: left; color: var(--ink-2); font-family: var(--font-ui); font-size: 13.5px; }
+.heat tbody tr { cursor: pointer; }
+.heat tbody tr:hover td:first-child, .heat tr.sel td:first-child { color: var(--ink); }
+.heat tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); padding-left: 10px; font-weight: 600; }
+.heat tr.avg { cursor: default; }
+.heat tr.avg td { font-weight: 600; border-top: 1px solid var(--axis); }
+.heat td.empty { color: var(--muted); }
+
+/* ---------- chips & lists */
+.chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 2px 10px 2px 8px; border: 1px solid currentColor; white-space: nowrap; }
+.chip::before { font-family: var(--font-data); font-size: 11px; }
+.chip.crit { color: var(--crit); } .chip.crit::before { content: "!"; }
+.chip.watch { color: var(--warn); } .chip.watch::before { content: "~"; }
+.chip.good { color: var(--good); } .chip.good::before { content: "\2713"; }
+.chip.sig { color: var(--series-a); } .chip.sig::before { content: "\2713"; }
+.chip.ns { color: var(--muted); } .chip.ns::before { content: "?"; }
+
+.learned { list-style: none; margin: 0; padding: 0; display: grid; }
+.learned li { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--grid); }
+.learned li:last-child { border-bottom: 0; }
+.learned .stripe { align-self: stretch; border-radius: 2px; background: var(--muted); }
+.learned li.crit .stripe { background: var(--crit); } .learned li.good .stripe { background: var(--good); } .learned li.watch .stripe { background: var(--warn); }
+.learned .what { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.learned .what b { font-weight: 600; font-size: 16px; }
+.learned .what span { color: var(--ink-2); font-size: 14px; }
+.learned .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.linkbtn { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; }
+.linkbtn:hover { color: var(--ink); }
+
+.tests { display: grid; }
+.test { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 150px; gap: 4px 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--grid); }
+.test:last-child { border-bottom: 0; }
+.test .name { font-weight: 600; }
+.test .name small { display: block; color: var(--muted); font-weight: 400; font-size: 13px; }
+.test .est { font-size: 14px; }
+.test .est small { display: block; color: var(--muted); font-size: 12px; font-family: var(--font-data); }
+.test .chip { justify-self: end; }
+@media (max-width: 560px) { .test { grid-template-columns: minmax(0, 1fr) auto; } .test .est { grid-column: 1; } }
+
+/* ---------- power-up lab */
+.planner { grid-column: span 12; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; }
+@media (max-width: 900px) { .planner { grid-template-columns: minmax(0, 1fr); } }
+.lever { display: grid; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--grid); }
+.lever:last-of-type { border-bottom: 0; }
+.lever-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.lever label { font-weight: 600; font-size: 15.5px; }
+.lever output { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.lever .why { font-size: 13px; color: var(--muted); }
+input[type="range"] { width: 100%; }
+.outcomes { display: grid; }
+.outcome { display: grid; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--grid); }
+.outcome:last-child { border-bottom: 0; }
+.outcome-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.outcome .label { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.outcome .big { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 1; }
+.delta { font-family: var(--font-display); font-size: 18px; font-weight: 800; letter-spacing: 0.02em; }
+.delta.up { color: var(--good); } .delta.down { color: var(--crit); } .delta.flat { color: var(--muted); }
+.meter { display: grid; gap: 5px; }
+.meter div { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 12px; color: var(--muted); font-family: var(--font-data); }
+.meter .track { display: block; height: 12px; border-radius: 0 4px 4px 0; background: var(--grid); position: relative; overflow: hidden; }
+.meter .fill { position: absolute; inset: 0 auto 0 0; border-radius: 0 4px 4px 0; transition: width 0.25s ease; }
+.assumptions { font-size: 13.5px; color: var(--ink-2); margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.btn { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); background: var(--surface-2); border: 1px solid var(--axis); border-radius: 999px; padding: 7px 16px; cursor: pointer; }
+.btn:hover { border-color: var(--ink-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+.btn.primary:hover { filter: brightness(1.1); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.status { font-size: 13px; color: var(--muted); }
+textarea.copyfall { width: 100%; font-family: var(--font-data); font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+
+footer { border-top: 1px solid var(--border); padding-block: 20px 36px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+footer a { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span><canvas id="bg-space"></canvas></div>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <p class="kicker">Game Analytics Project</p>
+      <h1>Player<br>Journey</h1>
+      <p class="lede">What happens after someone downloads a mobile game? Do they come back, keep playing, and buy things? Here is what 1.4 million players did.</p>
+    </div>
+    <div class="window" id="window"></div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Levels">
+  <div class="wrap tablist" role="tablist">
+    <button class="tab" role="tab" id="tab-home" data-tab="home">Home</button>
+    <button class="tab" role="tab" id="tab-start" data-tab="start"><small>Lvl 1</small>Starting</button>
+    <button class="tab" role="tab" id="tab-back" data-tab="back"><small>Lvl 2</small>Coming back</button>
+    <button class="tab" role="tab" id="tab-play" data-tab="play"><small>Lvl 3</small>Playing</button>
+    <button class="tab" role="tab" id="tab-spend" data-tab="spend"><small>Lvl 4</small>Spending</button>
+    <button class="tab" role="tab" id="tab-lab" data-tab="lab"><small>Bonus</small>Power-up lab</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ===================================================== Home -->
+  <section class="page" id="p-home" role="tabpanel" aria-labelledby="tab-home">
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>If 100 new players joined today</h3><p class="sub">Each dot is one player. This is what usually happens to them.</p></div></div>
+      <div class="hundred">
+        <div class="dots" id="dots" role="img"></div>
+        <div class="dot-key" id="dot-key"></div>
+      </div>
+    </div>
+    <div class="kpis" id="home-kpis"></div>
+    <div class="panel span-7">
+      <div class="panel-head"><div><h3>4 things we learned</h3><p class="sub">Biggest problem first</p></div></div>
+      <ul class="learned" id="learned"></ul>
+    </div>
+    <div class="panel span-5">
+      <div class="panel-head"><div><h3>Players each day in 2020</h3><p class="sub">The game keeps growing, a little more every day</p></div></div>
+      <div class="legend" id="home-legend"></div>
+      <div class="chart" id="home-dau"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Level 1: Starting -->
+  <section class="page" id="p-start" role="tabpanel" aria-labelledby="tab-start" hidden>
+    <div class="intro"><div><h2>Level 1: Starting</h2><p>Someone downloads the game and plays for the first time. Do they come back for more?</p></div></div>
+    <div class="kpis" id="start-kpis"></div>
+    <div class="panel span-6">
+      <div class="panel-head"><div><h3>When do players come back?</h3><p class="sub" id="start-return-sub"></p></div></div>
+      <div class="chart" id="start-return"></div>
+      <details class="data"><summary>Show the numbers</summary><div class="tablewrap" id="start-return-table"></div></details>
+    </div>
+    <div class="panel span-6">
+      <div class="panel-head">
+        <div><h3>Play more at the start, come back more</h3><p class="sub">Cookie Cats players, grouped by how many rounds they played in their first 2 weeks</p></div>
+        <div class="seg" role="group" aria-label="When"><button id="start-d1" data-v="d1_retention">Next day</button><button id="start-d7" data-v="d7_retention" aria-pressed="true">A week later</button></div>
+      </div>
+      <div class="legend" id="start-rounds-legend"></div>
+      <div class="chart" id="start-rounds"></div>
+      <span class="hint">Click a group of bars to see its details</span>
+      <div class="detail" id="start-detail"></div>
+    </div>
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>Experiment: where should the first gate go?</h3>
+        <p class="sub">In Cookie Cats, players reach a gate where they have to wait or ask friends before playing on. Half of 90,189 players got the gate at level 30. The other half got it at level 40.</p></div></div>
+      <div class="tests" id="start-gate"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Level 2: Coming back -->
+  <section class="page" id="p-back" role="tabpanel" aria-labelledby="tab-back" hidden>
+    <div class="intro"><div><h2>Level 2: Coming back</h2><p>Out of every 100 players who start, how many open the game again on day 1, day 7, day 30?</p></div></div>
+    <div class="kpis" id="back-kpis"></div>
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>Players who show up, day by day</h3><p class="sub">Out of everyone who started in 2020: how many played on exactly that day after starting</p></div></div>
+      <div class="chart" id="back-curve"></div>
+      <details class="data"><summary>Show the numbers</summary><div class="tablewrap" id="back-curve-table"></div></details>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head">
+        <div><h3>Players who started in the same week</h3><p class="sub">Darker blue means more players came back. Empty cells: that week's players have not reached that day yet.</p></div>
+        <div class="controls"><label for="back-from">From</label><select id="back-from"></select><label for="back-to">to</label><select id="back-to"></select></div>
+      </div>
+      <span class="hint">Click a week to compare it with the rest</span>
+      <div class="tablewrap"><table class="heat" id="back-heat"></table></div>
+    </div>
+    <div class="panel span-5">
+      <div class="detail" id="back-detail"></div>
+      <div class="legend" id="back-week-legend"></div>
+      <div class="chart" id="back-week"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Level 3: Playing -->
+  <section class="page" id="p-play" role="tabpanel" aria-labelledby="tab-play" hidden>
+    <div class="intro">
+      <div><h2>Level 3: Playing</h2><p>How many people play every day, and who are the players that play the most?</p></div>
+      <div class="seg" role="group" aria-label="Time">
+        <button id="play-all" data-days="0" aria-pressed="true">All of 2020</button>
+        <button id="play-90" data-days="90">Last 90 days</button>
+        <button id="play-30" data-days="30">Last 30 days</button>
+      </div>
+    </div>
+    <div class="kpis" id="play-kpis"></div>
+    <div class="panel span-8">
+      <div class="panel-head"><div><h3>How many people play</h3><p class="sub">Different players who played that day, that week, and that month</p></div></div>
+      <div class="legend" id="play-legend"></div>
+      <div class="chart" id="play-active"></div>
+    </div>
+    <div class="panel span-4">
+      <div class="panel-head"><div><h3>How loyal are they?</h3><p class="sub">Out of this month's players, how many play on a normal day</p></div></div>
+      <div class="chart" id="play-sticky"></div>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head"><div><h3>4 kinds of new players</h3><p class="sub">Grouped by how many days they came back in their first month</p></div></div>
+      <div class="legend" id="play-seg-legend"></div>
+      <div class="chart" id="play-seg"></div>
+      <span class="hint">Click a kind of player to meet them</span>
+    </div>
+    <div class="panel span-5"><div class="detail" id="play-detail"></div></div>
+  </section>
+
+  <!-- ===================================================== Level 4: Spending -->
+  <section class="page" id="p-spend" role="tabpanel" aria-labelledby="tab-spend" hidden>
+    <div class="intro">
+      <div><h2>Level 4: Spending</h2><p>Experiment: half of 404,770 players saw the old shop (shop A). The other half saw a new shop (shop B). Which one made more money?</p></div>
+      <label class="check" for="spend-whales"><input type="checkbox" id="spend-whales" checked> Count the 123 huge spenders</label>
+    </div>
+    <div class="panel span-5">
+      <div class="panel-head"><div><h3>Shop A vs shop B</h3><p class="sub" id="spend-whale-note"></p></div></div>
+      <div class="tablewrap" id="spend-table"></div>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head"><div><h3>Did shop B win?</h3><p class="sub">"Real difference" means it is very unlikely to be luck. "Could be luck" means we can't tell yet.</p></div></div>
+      <div class="tests" id="spend-tests"></div>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head">
+        <div><h3>Who brings in the money</h3><p class="sub">Buyers grouped by how much they spent</p></div>
+        <div class="seg" role="group" aria-label="Show"><button id="spend-rev" data-v="revenue" aria-pressed="true">Money</button><button id="spend-pay" data-v="players">Buyers</button></div>
+      </div>
+      <div class="legend" id="spend-tier-legend"></div>
+      <div class="chart" id="spend-tiers"></div>
+      <span class="hint">Click a spending group to see its details</span>
+    </div>
+    <div class="panel span-5"><div class="detail" id="spend-detail"></div></div>
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>How much each buyer spent</h3><p class="sub">Each bar counts buyers in a price range. The ranges grow 10 times bigger at each label.</p></div></div>
+      <div class="legend" id="spend-hist-legend"></div>
+      <div class="chart" id="spend-hist"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Power-up lab -->
+  <section class="page" id="p-lab" role="tabpanel" aria-labelledby="tab-lab" hidden>
+    <div class="intro"><div><h2>Power-up lab</h2><p>What if we made the game better? Slide the power-ups and see what one year of new players would look like.</p></div></div>
+    <div class="planner">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Power-ups</h3></div><button class="btn" id="lab-reset" type="button">Reset</button></div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-return">More players come back in week one</label><output id="lab-return-out" for="lab-return"></output></div>
+          <input type="range" id="lab-return" min="0" max="10" step="0.5" value="0">
+          <span class="why">How: a better first game, and a gift waiting for them the next day.</span>
+        </div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-offer">Which shop</label><output id="lab-offer-out" for="lab-offer"></output></div>
+          <select id="lab-offer">
+            <option value="a">Shop A (the old one)</option>
+            <option value="b">Shop B (the new one)</option>
+            <option value="a_core">Shop A without its 123 huge spenders</option>
+          </select>
+          <span class="why">The experiment on Level 4 tested these.</span>
+        </div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-conv">More returning players buy something</label><output id="lab-conv-out" for="lab-conv"></output></div>
+          <input type="range" id="lab-conv" min="-20" max="50" step="5" value="0">
+          <span class="why">How: a great deal in the shop, shown at the right moment.</span>
+        </div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-spend">Buyers spend more</label><output id="lab-spend-out" for="lab-spend"></output></div>
+          <input type="range" id="lab-spend" min="-20" max="50" step="5" value="0">
+          <span class="why">How: players who stay longer find more things they want.</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>One year of new players</h3><p class="sub" id="lab-volume"></p></div></div>
+        <div class="outcomes" id="lab-outcomes"></div>
+        <details class="data"><summary>How we worked this out</summary><ul class="assumptions" id="lab-assumptions"></ul></details>
+        <div class="btn-row"><button class="btn primary" id="lab-copy" type="button">Copy my plan</button><span class="status" id="lab-status" role="status"></span></div>
+        <textarea class="copyfall" id="lab-copytext" rows="6" readonly hidden></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="wrap">
+  <footer>
+    <span>Made by Jatin Chauhan. Data: <a href="https://www.kaggle.com/datasets/debs2x/gamelytics-mobile-analytics-challenge" target="_blank" rel="noopener">Gamelytics</a> and <a href="https://www.kaggle.com/datasets/mursideyarkin/mobile-games-ab-testing-cookie-cats" target="_blank" rel="noopener">Cookie Cats</a> on Kaggle. The Gamelytics data looks computer-made, so treat its numbers as practice data.</span>
+    <a href="https://github.com/chauhan-03/game-analytics" target="_blank" rel="noopener">How it was made, on GitHub</a>
+  </footer>
+</div>
+
+<button class="fab" id="coach-open" type="button" aria-expanded="false" aria-controls="coach">
+  <span class="face"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="4" fill="#ff4747"/><circle cx="9.5" cy="13" r="1.8" fill="#ffffff"/><circle cx="14.5" cy="13" r="1.8" fill="#ffffff"/><rect x="11" y="3" width="2" height="4" rx="1" fill="#ff4747"/></svg></span>
+  Ask Coach
+</button>
+<section class="coach" id="coach" aria-label="Coach, the dashboard helper" hidden>
+  <div class="coach-head">
+    <span class="face"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="4" fill="#ffffff"/><circle cx="9.5" cy="13" r="1.8" fill="#ff4747"/><circle cx="14.5" cy="13" r="1.8" fill="#ff4747"/><rect x="11" y="3" width="2" height="4" rx="1" fill="#ffffff"/></svg></span>
+    <div><b>Coach</b><small id="coach-mode">Answers from this page's numbers</small></div>
+    <button class="x" id="coach-close" type="button" aria-label="Close Coach">&times;</button>
+  </div>
+  <div class="chat" id="chat" aria-live="polite"></div>
+  <div class="chips" id="chips"></div>
+  <form class="ask" id="ask">
+    <input id="ask-input" type="text" autocomplete="off" placeholder="Ask about players, shops, levels...">
+    <button type="submit">Ask</button>
+  </form>
+</section>
+
+<div class="arcade" id="arcade" role="dialog" aria-modal="true" aria-label="Neon Dash" hidden>
+  <div class="cabinet">
+    <div class="cabinet-head"><b>Neon <span>Dash</span></b><button class="btn" id="arcade-close" type="button">Back to data</button></div>
+    <canvas id="game" width="360" height="480"></canvas>
+    <div class="pad"><button id="go-left" type="button" aria-label="Move left">&#9664;</button><button id="go-right" type="button" aria-label="Move right">&#9654;</button></div>
+    <p class="how">Dodge the traffic. Arrow keys, A/D, or tap the left and right side. Space to race again.</p>
+  </div>
+</div>
+
+<div id="tip" hidden></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+// Coach's API proxy (coach-proxy/). Empty = built-in answers only. Set COACH_API_URL when building.
+const COACH_API = /*__COACH_API__*/"";
+
+/* ------------------------------------------------------------------ helpers */
+const $ = (s, r = document) => r.querySelector(s);
+const F = {
+  pct1: v => (v * 100).toFixed(1) + "%",
+  pct2: v => (v * 100).toFixed(2) + "%",
+  pts: v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1) + " pts",
+  pts3: v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(3) + " pts",
+  int: v => Math.round(v).toLocaleString("en-US"),
+  signed: (v, d = 2) => (v >= 0 ? "+" : "−") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }),
+  num: (v, d = 2) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }),
+  short: v => {
+    const a = Math.abs(v);
+    if (a >= 1e6) return (v / 1e6).toFixed(a >= 1e7 ? 0 : 1) + "M";
+    if (a >= 1e3) return (v / 1e3).toFixed(a >= 1e4 ? 0 : 1) + "k";
+    return String(Math.round(v * 100) / 100);
+  },
+  p: p => p < 0.001 ? "p < 0.001" : "p = " + p.toFixed(3),
+  date: s => new Date(s + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const sum = a => a.reduce((x, y) => x + y, 0);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+/* ------------------------------------------------------------------ tooltip */
+const tip = $("#tip");
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 14, top = y + 14;
+  if (left + w > innerWidth - 8) left = x - w - 14;
+  if (top + h > innerHeight - 8) top = y - h - 14;
+  tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+const tipRow = (color, name, value) =>
+  `<div class="r"><span><i style="background:${color}"></i>${esc(name)}</span><span>${esc(value)}</span></div>`;
+
+/* ------------------------------------------------------------------ svg charts */
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent, style) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (style) Object.assign(e.style, style);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function niceStep(raw) {
+  const exp = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / exp;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * exp;
+}
+function yScale(max, n = 4) {
+  const step = niceStep((max || 1) / n), top = Math.ceil((max || 1) / step) * step;
+  const ticks = []; for (let v = 0; v <= top + step / 2; v += step) ticks.push(v);
+  return { top, ticks };
+}
+function frame(host, height) {
+  host.innerHTML = "";
+  const w = host.clientWidth;
+  if (!w) { host._w = 0; return null; }   // hidden: let the ResizeObserver redraw it when shown
+  const svg = el("svg", { viewBox: `0 0 ${w} ${height}`, role: "img" }, host);
+  return { svg, w, h: height };
+}
+function legend(host, items, kind = "box") {
+  host.innerHTML = items.map(([name, color]) =>
+    `<span><i class="${kind === "line" ? "line" : ""}" style="background:${color}"></i>${esc(name)}</span>`).join("");
+}
+function drawYAxis(svg, m, w, h, sc, fmt) {
+  for (const t of sc.ticks) {
+    const y = m.t + (h - m.t - m.b) * (1 - t / sc.top);
+    el("line", { x1: m.l, x2: w - m.r, y1: y, y2: y, class: t === 0 ? "baseline" : "gridline" }, svg);
+    el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end" }, svg).textContent = fmt(t);
+  }
+}
+
+/* Line chart with crosshair tooltip. series: [{name, color, values}] */
+function lineChart(host, o) {
+  const f = frame(host, o.height || 260); if (!f) return;
+  const { svg, w, h } = f, n = o.x.length;
+  const labelled = o.series.length > 1 && o.series.length <= 4 && w > 420;
+  const m = { t: 12, r: labelled ? 56 : 16, b: 28, l: 52 };
+  const max = o.yMax ?? Math.max(...o.series.flatMap(s => s.values));
+  const sc = yScale(max);
+  const X = i => m.l + (w - m.l - m.r) * (n === 1 ? 0.5 : i / (n - 1));
+  const Y = v => m.t + (h - m.t - m.b) * (1 - v / sc.top);
+  drawYAxis(svg, m, w, h, sc, o.yFmt);
+  for (const i of o.xTicks) el("text", { x: X(i), y: h - 8, "text-anchor": "middle" }, svg).textContent = o.xFmt(o.x[i], i);
+
+  for (const s of o.series) {
+    const d = s.values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+    if (o.area && o.series.length === 1)
+      el("path", { d: `${d}L${X(n - 1)},${Y(0)}L${X(0)},${Y(0)}Z` }, svg, { fill: s.color, opacity: 0.12, stroke: "none" });
+    el("path", { d, fill: "none", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg, { stroke: s.color });
+    const last = s.values[n - 1];
+    el("circle", { cx: X(n - 1), cy: Y(last), r: 3.5, "stroke-width": 2 }, svg, { fill: s.color, stroke: "var(--ring)" });
+    if (labelled) el("text", { x: X(n - 1) + 8, y: Y(last) + 4, class: "lbl" }, svg).textContent = s.name;
+  }
+  for (const i of o.marks || []) {
+    const s = o.series[0], v = s.values[i];
+    el("circle", { cx: X(i), cy: Y(v), r: 4, "stroke-width": 2 }, svg, { fill: s.color, stroke: "var(--ring)" });
+    el("text", { x: X(i), y: Y(v) - 10, "text-anchor": "middle", class: "lbl" }, svg).textContent = o.markFmt(i, v);
+  }
+
+  const cross = el("g", {}, svg, { display: "none" });
+  const vline = el("line", { y1: m.t, y2: h - m.b, "stroke-width": 1 }, cross, { stroke: "var(--axis)" });
+  const dots = o.series.map(s => el("circle", { r: 4, "stroke-width": 2 }, cross, { fill: s.color, stroke: "var(--ring)" }));
+  const hit = el("rect", { x: m.l, y: m.t, width: w - m.l - m.r, height: h - m.t - m.b, class: "hit" }, svg);
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (w / r.width);
+    const i = Math.max(0, Math.min(n - 1, Math.round((px - m.l) / (w - m.l - m.r) * (n - 1))));
+    cross.style.display = ""; vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i));
+    o.series.forEach((s, k) => { dots[k].setAttribute("cx", X(i)); dots[k].setAttribute("cy", Y(s.values[i])); });
+    showTip(`<div class="t">${esc(o.tipTitle(o.x[i], i))}</div>` +
+      o.series.map(s => tipRow(s.color, s.name, o.tipFmt(s.values[i], i, s))).join(""), ev.clientX, ev.clientY);
+  };
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerleave", () => { cross.style.display = "none"; hideTip(); });
+}
+
+/* Bar chart, one hit area per category: hover shows a tooltip, click (or Enter) selects. */
+function barChart(host, o) {
+  const f = frame(host, o.height || 260); if (!f) return;
+  const { svg, w, h } = f, n = o.cats.length, g = o.groups.length;
+  const lines = Math.max(...o.cats.map(c => String(c).split("\n").length));
+  const m = { t: 12, r: 12, b: 14 + lines * 14, l: 52 };
+  const sc = yScale(Math.max(...o.groups.flatMap(s => s.values)));
+  const Y = v => m.t + (h - m.t - m.b) * (1 - v / sc.top);
+  const band = (w - m.l - m.r) / n;
+  if (o.selected != null && o.selected >= 0)
+    el("rect", { x: m.l + band * o.selected + 2, y: m.t, width: band - 4, height: h - m.t - m.b, rx: 4, class: "band" }, svg);
+  drawYAxis(svg, m, w, h, sc, o.yFmt);
+  const gap = n > 20 ? 1 : 2;
+  const bw = Math.max(1, (band * (n > 20 ? 0.9 : 0.66) - gap * (g - 1)) / g);
+  const every = Math.max(1, Math.ceil(n / Math.floor((w - m.l - m.r) / (lines > 1 ? 78 : 40))));
+  o.cats.forEach((cat, ci) => {
+    const x0 = m.l + band * ci + (band - (bw * g + gap * (g - 1))) / 2;
+    const showLabel = o.labelAt ? o.labelAt(ci) : ci % every === 0;
+    if (showLabel) {
+      const t = el("text", { x: m.l + band * (ci + 0.5), y: h - m.b + 16, "text-anchor": "middle" }, svg);
+      String(cat).split("\n").forEach((line, k) => {
+        const ts = el("tspan", { x: m.l + band * (ci + 0.5), dy: k ? 14 : 0 }, t);
+        ts.textContent = line;
+        if (k === 0) ts.setAttribute("class", "lbl" + (o.selected === ci ? " sel" : ""));
+      });
+    }
+    const bars = o.groups.map((s, gi) => {
+      const v = s.values[ci], x = x0 + gi * (bw + gap), y = Y(v), base = Y(0);
+      const r = Math.min(4, bw / 2, base - y);
+      return el("path", {
+        class: "bar",
+        d: v > 0 ? `M${x},${base}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${base}Z` : "",
+      }, svg, { fill: s.color });
+    });
+    const hit = el("rect", { x: m.l + band * ci, y: m.t, width: band, height: h - m.t - m.b, class: "bar-hit" + (o.onSelect ? " pick" : "") }, svg);
+    hit.addEventListener("pointermove", ev => { bars.forEach(b => b.classList.add("on")); showTip(o.tip(ci), ev.clientX, ev.clientY); });
+    hit.addEventListener("pointerleave", () => { bars.forEach(b => b.classList.remove("on")); hideTip(); });
+    if (o.onSelect) {
+      hit.setAttribute("tabindex", "0");
+      hit.setAttribute("role", "button");
+      hit.setAttribute("aria-label", String(cat).replace("\n", " "));
+      hit.addEventListener("click", () => { hideTip(); o.onSelect(ci); });
+      hit.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); o.onSelect(ci); } });
+    }
+  });
+}
+
+function table(host, headers, rows) {
+  host.innerHTML = `<table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? "num" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("") +
+    "</tbody></table>";
+}
+
+/* Charts redraw when their box changes size (level shown, window resized). */
+const charts = new Map();
+const ro = new ResizeObserver(entries => {
+  for (const e of entries) {
+    const draw = charts.get(e.target), w = Math.round(e.contentRect.width);
+    if (draw && w && e.target._w !== w) { e.target._w = w; draw(); }
+  }
+});
+function chart(id, draw) { const host = $("#" + id); charts.set(host, () => draw(host)); ro.observe(host); return () => draw(host); }
+
+function kpis(host, items) {
+  host.innerHTML = items.map(k => k[3]
+    ? `<button class="kpi" type="button" data-goto="${k[3]}"><span class="label">${esc(k[0])}</span><span class="value">${esc(k[1])}</span><span class="note">${esc(k[2] || "")}</span><span class="go">See ${esc(LEVEL_NAMES[k[3]])} &rarr;</span></button>`
+    : `<div class="kpi"><span class="label">${esc(k[0])}</span><span class="value">${esc(k[1])}</span><span class="note">${esc(k[2] || "")}</span></div>`).join("");
+}
+function testRow(name, detail, est, small, sig) {
+  return `<div class="test"><div class="name">${esc(name)}<small>${esc(detail)}</small></div>
+    <div class="est">${esc(est)}<small>${esc(small)}</small></div>
+    <span class="chip ${sig ? "sig" : "ns"}">${sig ? "Real difference" : "Could be luck"}</span></div>`;
+}
+function detail(host, eyebrow, title, text, facts) {
+  host.innerHTML = `<span class="eyebrow">${esc(eyebrow)}</span><h4>${esc(title)}</h4>${text ? `<p>${esc(text)}</p>` : ""}
+    <div class="facts">${facts.map(([v, l]) => `<div class="fact"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>`;
+}
+
+/* ------------------------------------------------------------------ data */
+const f = DATA.findings, R = f.retention, O = f.onboarding, E = f.engagement, M = f.monetization, T = M.tests;
+const daily = DATA.daily;
+const C = { a: "var(--series-a)", b: "var(--series-b)", c: "var(--series-c)", muted: "var(--axis)", gold: "var(--gold)" };
+const LEVEL_NAMES = { home: "home", start: "Level 1", back: "Level 2", play: "Level 3", spend: "Level 4", lab: "the lab" };
+const of100 = v => { const x = v * 100; return (x < 10 && Math.abs(x - Math.round(x)) > 0.05 ? x.toFixed(1) : Math.round(x)) + " out of 100"; };
+const pctOrNot = v => F.pct1(v);
+$("#window").innerHTML = `<span>Players who joined <b>${F.date(f.window.cohort_start)}</b> to <b>${F.date(f.window.last_full_day)} 2020</b></span>
+  <span><b>${F.int(f.window.new_players)}</b> new players · <b>${F.int(M.players_a + M.players_b)}</b> in the shop test</span>`;
+const monthTicks = (rows, key = "date") => rows.map((r, i) => [r[key], i]).filter(([d, i]) => i === 0 || d.slice(8) === "01").map(([, i]) => i);
+const rememberPick = (key, fallback) => { const v = store.get(key); return v == null ? fallback : +v; };
+
+/* ------------------------------------------------------------------ home */
+const nNever = Math.round(O.never_returned_30d * 100), nBuy = Math.max(1, Math.round(M.conversion_a * 100));
+const nBack = 100 - nNever;
+$("#dots").setAttribute("aria-label", `${nNever} of 100 players never come back, ${nBack} come back, ${nBuy} buys something`);
+$("#dots").innerHTML = Array.from({ length: 100 }, (_, i) =>
+  `<span class="dot ${i >= 100 - nBuy ? "buy" : i >= nNever ? "back" : ""}"></span>`).join("");
+$("#dot-key").innerHTML = `
+  <div><i style="background:var(--axis)"></i><p style="margin:0"><b>${nNever}</b><span>play once and never come back</span></p></div>
+  <div><i style="background:var(--series-a)"></i><p style="margin:0"><b>${nBack}</b><span>come back, all of them within the first week</span></p></div>
+  <div><i style="background:var(--gold)"></i><p style="margin:0"><b>About ${nBuy}</b><span>buys something in the shop (about 1 in ${Math.round(1 / M.conversion_a)})</span></p></div>`;
+kpis($("#home-kpis"), [
+  ["New players", F.int(f.window.new_players), "Joined between January and September 2020", "start"],
+  ["Back the next day", F.pct1(R.d1), of100(R.d1) + " new players", "back"],
+  ["Playing each day", F.int(E.dau_last30_avg), "Players on a normal day lately", "play"],
+  ["Buy something", "1 in " + Math.round(1 / M.conversion_a), "Players who spend money", "spend"],
+  ["Money per player", F.num(M.arpu_a), "Average across all players, shop A", "spend"],
+]);
+const learned = [
+  ["crit", "Big problem", "Most players leave after one day",
+   `${of100(O.never_returned_30d)} new players never come back. Everyone who does come back does it within a week, so the first week is everything.`, "start"],
+  ["watch", "Keep an eye on", "The new shop is not clearly better yet",
+   `Shop B made a little more money per player, but that could be luck. Most of shop A's money came from just ${T.group_a_10k_payers} huge spenders.`, "spend"],
+  ["watch", "Keep an eye on", "A few superfans do most of the playing",
+   `${Math.round((E.segments.Regular.share_of_players + E.segments.Core.share_of_players) * 100)} out of 100 new players make ${Math.round((E.segments.Regular.share_of_logins + E.segments.Core.share_of_logins) * 100)} out of 100 of all visits.`, "play"],
+  ["good", "Working well", "Keep the first gate at level 30",
+   "Moving it to level 40 made fewer players come back a week later, and that's a real difference, not luck.", "start"],
+];
+$("#learned").innerHTML = learned.map(([cls, chip, what, why, tab]) =>
+  `<li class="${cls}"><span class="stripe"></span><div class="what"><b>${esc(what)}</b><span>${esc(why)}</span></div>
+   <div class="meta"><span class="chip ${cls}">${chip}</span><button class="linkbtn" data-goto="${tab}">See ${LEVEL_NAMES[tab]} &rarr;</button></div></li>`).join("");
+legend($("#home-legend"), [["Players that day", C.a], ["New players that day", C.c]], "line");
+chart("home-dau", host => lineChart(host, {
+  x: daily.map(d => d.date), height: 240,
+  series: [{ name: "Playing", color: C.a, values: daily.map(d => d.dau) },
+           { name: "New", color: C.c, values: daily.map(d => d.new_players) }],
+  yFmt: F.short, xTicks: monthTicks(daily).filter((_, k) => k % 2 === 0), xFmt: d => F.date(d).split(" ")[0],
+  tipTitle: d => F.date(d) + ", 2020", tipFmt: v => F.int(v),
+}));
+
+/* ------------------------------------------------------------------ level 1: starting */
+kpis($("#start-kpis"), [
+  ["Never come back", F.pct1(O.never_returned_30d), of100(O.never_returned_30d) + " new players"],
+  ["Back in week one", F.pct1(O.returned_within_7d), "Came back at least once in 7 days"],
+  ["Usual comeback day", "Day " + O.median_first_return_day, "For players who come back"],
+  ["Barely played", F.pct1(O.cookie_cats_under_10_rounds), "Played under 10 rounds (Cookie Cats)"],
+]);
+const fr = DATA.first_return.filter(r => r.first_return_day > 0);
+$("#start-return-sub").textContent = `Out of every 100 new players, how many came back for the first time on each day. After day ${fr[fr.length - 1].first_return_day}, nobody comes back for the first time.`;
+chart("start-return", host => barChart(host, {
+  cats: fr.map(r => "Day " + r.first_return_day), height: 240,
+  groups: [{ name: "Share", color: C.a, values: fr.map(r => r.share) }],
+  yFmt: v => (v * 100).toFixed(v < 0.01 && v > 0 ? 1 : 0) + "%",
+  tip: ci => `<div class="t">First came back on day ${fr[ci].first_return_day}</div>${tipRow(C.a, "Out of 100 new players", (fr[ci].share * 100).toFixed(1))}${tipRow("transparent", "Players", F.int(fr[ci].players))}`,
+}));
+table($("#start-return-table"), ["First came back", "Players", "Out of 100"],
+  DATA.first_return.map(r => [r.first_return_day < 0 ? "Never" : "Day " + r.first_return_day, F.int(r.players), (r.share * 100).toFixed(1)]));
+
+const buckets = ["0", "1-9", "10-29", "30-39", "40-99", "100+"];
+const dr = (b, v) => DATA.d7_rounds.find(r => r.rounds_bucket === b && r.version === v);
+const ccPlayers = sum(DATA.progress.map(p => p.players));
+const bucketPlayers = b => dr(b, "gate_30").players + dr(b, "gate_40").players;
+let roundsMetric = store.get("ga-rounds") || "d7_retention";
+let pickRounds = rememberPick("ga-pick-rounds", 3);
+legend($("#start-rounds-legend"), [["Gate at level 30", C.a], ["Gate at level 40", C.b]]);
+const drawRounds = chart("start-rounds", host => barChart(host, {
+  cats: buckets.map(b => `${b}\n${Math.round(bucketPlayers(b) / ccPlayers * 100)}%`), height: 250,
+  groups: [{ name: "Gate 30", color: C.a, values: buckets.map(b => dr(b, "gate_30")[roundsMetric]) },
+           { name: "Gate 40", color: C.b, values: buckets.map(b => dr(b, "gate_40")[roundsMetric]) }],
+  yFmt: v => (v * 100).toFixed(0) + "%", selected: pickRounds,
+  onSelect: ci => { pickRounds = ci; store.set("ga-pick-rounds", ci); drawRounds(); showRounds(); },
+  tip: ci => `<div class="t">Played ${buckets[ci]} rounds</div>` +
+    tipRow(C.a, "Gate at 30", F.pct1(dr(buckets[ci], "gate_30")[roundsMetric])) +
+    tipRow(C.b, "Gate at 40", F.pct1(dr(buckets[ci], "gate_40")[roundsMetric])),
+}));
+function showRounds() {
+  const b = buckets[pickRounds], a = dr(b, "gate_30"), c = dr(b, "gate_40");
+  const wk = (a.d7_retention * a.players + c.d7_retention * c.players) / (a.players + c.players);
+  const nx = (a.d1_retention * a.players + c.d1_retention * c.players) / (a.players + c.players);
+  detail($("#start-detail"), "You picked", `Players who played ${b} rounds`,
+    `${Math.round(bucketPlayers(b) / ccPlayers * 100)} out of 100 players are in this group. About ${Math.round(wk * 100)} out of 100 of them came back a week later.`,
+    [[F.int(bucketPlayers(b)), "players"], [F.pct1(nx), "back the next day"], [F.pct1(wk), "back a week later"]]);
+}
+function setRounds(v) {
+  roundsMetric = v; store.set("ga-rounds", v);
+  for (const b of document.querySelectorAll("#start-d1, #start-d7")) b.setAttribute("aria-pressed", String(b.dataset.v === v));
+  drawRounds();
+}
+for (const b of document.querySelectorAll("#start-d1, #start-d7")) b.addEventListener("click", () => setRounds(b.dataset.v));
+setRounds(roundsMetric); showRounds();
+const G = O.gate_test, gap100 = v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1);
+$("#start-gate").innerHTML =
+  testRow("Came back the next day", `Gate at 30: ${(G.d1.rate_a * 100).toFixed(1)} of 100 · gate at 40: ${(G.d1.rate_b * 100).toFixed(1)} of 100`,
+    `Gate at 40: ${gap100(G.d1.diff)} of 100 players`, `range ${gap100(G.d1.ci_low)} to ${gap100(G.d1.ci_high)} · ${F.p(G.d1.p_value)}`, G.d1.p_value < 0.05) +
+  testRow("Came back a week later", `Gate at 30: ${(G.d7.rate_a * 100).toFixed(1)} of 100 · gate at 40: ${(G.d7.rate_b * 100).toFixed(1)} of 100`,
+    `Gate at 40: ${gap100(G.d7.diff)} of 100 players`, `range ${gap100(G.d7.ci_low)} to ${gap100(G.d7.ci_high)} · ${F.p(G.d7.p_value)}`, G.d7.p_value < 0.05);
+
+/* ------------------------------------------------------------------ level 2: coming back */
+kpis($("#back-kpis"), [1, 7, 30].map(n => [`Day ${n}`, F.pct1(R["d" + n]),
+  n === 1 ? "The lowest day of the first week" : n === 7 ? `Most players show up on day ${R.peak_day} (${F.pct1(R.peak_retention)})` : "A month after starting"]));
+const curve = DATA.curve;
+chart("back-curve", host => lineChart(host, {
+  x: curve.map(r => r.day_n), area: true, height: 260,
+  series: [{ name: "Came back", color: C.a, values: curve.map(r => r.retention) }],
+  yFmt: v => (v * 100).toFixed(0) + "%", xTicks: [0, 6, 13, 20, 29], xFmt: d => "Day " + d,
+  marks: [0, curve.findIndex(r => r.day_n === R.peak_day), 29], markFmt: (i, v) => `Day ${curve[i].day_n}: ${F.pct1(v)}`,
+  tipTitle: d => "Day " + d + " after starting", tipFmt: v => (v * 100).toFixed(1) + " out of 100",
+}));
+table($("#back-curve-table"), ["Day", "Players who had reached it", "Played that day", "Out of 100"],
+  curve.map(r => ["Day " + r.day_n, F.int(r.eligible), F.int(r.retained), (r.retention * 100).toFixed(1)]));
+
+const cohorts = DATA.cohorts, days = [1, 3, 7, 14, 30];
+const bFrom = $("#back-from"), bTo = $("#back-to");
+for (const s of [bFrom, bTo]) s.innerHTML = cohorts.map((c, i) => `<option value="${i}">${F.date(c.cohort_week)}</option>`).join("");
+bFrom.value = "0"; bTo.value = String(cohorts.length - 1);
+const heatMax = Math.max(...cohorts.flatMap(c => days.map(n => c["d" + n] ?? 0)));
+let pickWeek = rememberPick("ga-pick-week", cohorts.findLastIndex(c => c.d30 != null));
+function heatCell(v, title) {
+  if (v == null) return `<td class="empty">&middot;</td>`;
+  const k = Math.round(12 + 80 * v / heatMax);
+  return `<td style="background:color-mix(in srgb, var(--series-a) ${k}%, var(--ring));color:var(--ink)" data-tip="${esc(title)}">${F.pct1(v)}</td>`;
+}
+function selectedWeeks() { let a = +bFrom.value, b = +bTo.value; if (a > b) [a, b] = [b, a]; return [a, b]; }
+function avgOf(rows) {
+  return days.map(n => {
+    const done = rows.filter(r => r["d" + n] != null);
+    return done.length ? sum(done.map(r => r["d" + n] * r.cohort_size)) / sum(done.map(r => r.cohort_size)) : null;
+  });
+}
+function drawHeat() {
+  const [a, b] = selectedWeeks(), rows = cohorts.slice(a, b + 1), avg = avgOf(rows);
+  $("#back-heat").innerHTML = `<thead><tr><th>Week started</th><th>Players</th>${days.map(n => `<th>Day ${n}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map((r, k) => `<tr data-i="${a + k}" class="${a + k === pickWeek ? "sel" : ""}" tabindex="0"><td>${F.date(r.cohort_week)}</td><td class="num">${F.int(r.cohort_size)}</td>${days.map(n =>
+      heatCell(r["d" + n], `Week of ${F.date(r.cohort_week)}, day ${n}: ${r["d" + n] == null ? "" : (r["d" + n] * 100).toFixed(1)} out of 100`)).join("")}</tr>`).join("") +
+    `<tr class="avg"><td>All weeks shown</td><td class="num">${F.int(sum(rows.map(r => r.cohort_size)))}</td>${avg.map(v => `<td>${v == null ? "&middot;" : F.pct1(v)}</td>`).join("")}</tr></tbody>`;
+  showWeek();
+}
+const drawWeek = chart("back-week", host => {
+  const [a, b] = selectedWeeks(), avg = avgOf(cohorts.slice(a, b + 1)), r = cohorts[pickWeek];
+  barChart(host, {
+    cats: days.map(n => "Day " + n), height: 220,
+    groups: [{ name: "This week", color: C.a, values: days.map(n => r["d" + n] ?? 0) },
+             { name: "All weeks", color: C.muted, values: avg.map(v => v ?? 0) }],
+    yFmt: v => (v * 100).toFixed(0) + "%",
+    tip: ci => `<div class="t">Day ${days[ci]}</div>${tipRow(C.a, "This week", r["d" + days[ci]] == null ? "not yet" : F.pct1(r["d" + days[ci]]))}${tipRow(C.muted, "All weeks shown", avg[ci] == null ? "not yet" : F.pct1(avg[ci]))}`,
+  });
+});
+function showWeek() {
+  const [a, b] = selectedWeeks(), r = cohorts[pickWeek], avg = avgOf(cohorts.slice(a, b + 1));
+  const d7 = r.d7, diff = d7 == null || avg[2] == null ? null : d7 - avg[2];
+  detail($("#back-detail"), "You picked", `Week of ${F.date(r.cohort_week)}`,
+    diff == null ? "These players have not reached day 7 yet." :
+      `On day 7, ${(d7 * 100).toFixed(1)} out of 100 of these players came back. That is ${Math.abs(diff * 100) < 0.2 ? "about the same as" : diff > 0 ? "a bit better than" : "a bit worse than"} the other weeks.`,
+    [[F.int(r.cohort_size), "players started"], [r.d1 == null ? "not yet" : F.pct1(r.d1), "back on day 1"], [r.d30 == null ? "not yet" : F.pct1(r.d30), "back on day 30"]]);
+  legend($("#back-week-legend"), [["This week", C.a], ["All weeks shown", C.muted]]);
+  drawWeek();
+}
+for (const s of [bFrom, bTo]) s.addEventListener("change", drawHeat);
+const pickRow = tr => { if (!tr || tr.dataset.i == null) return; pickWeek = +tr.dataset.i; store.set("ga-pick-week", pickWeek); drawHeat(); };
+$("#back-heat").addEventListener("click", ev => pickRow(ev.target.closest("tr[data-i]")));
+$("#back-heat").addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pickRow(ev.target.closest("tr[data-i]")); } });
+$("#back-heat").addEventListener("pointermove", ev => { const t = ev.target.closest("td[data-tip]"); t ? showTip(t.dataset.tip, ev.clientX, ev.clientY) : hideTip(); });
+$("#back-heat").addEventListener("pointerleave", hideTip);
+if (!cohorts[pickWeek]) pickWeek = 0;
+drawHeat();
+
+/* ------------------------------------------------------------------ level 3: playing */
+let playDays = +(store.get("ga-period") || 0);
+legend($("#play-legend"), [["That month", C.c], ["That week", C.b], ["That day", C.a]], "line");
+const playRows = () => playDays ? daily.slice(-playDays) : daily;
+const drawActive = chart("play-active", host => {
+  const rows = playRows();
+  lineChart(host, {
+    x: rows.map(d => d.date), height: 280,
+    series: [{ name: "Month", color: C.c, values: rows.map(d => d.mau) },
+             { name: "Week", color: C.b, values: rows.map(d => d.wau) },
+             { name: "Day", color: C.a, values: rows.map(d => d.dau) }],
+    yFmt: F.short, xTicks: playDays && playDays <= 30 ? [0, 7, 14, 21, rows.length - 1] : monthTicks(rows), xFmt: d => F.date(d),
+    tipTitle: d => F.date(d) + ", 2020", tipFmt: v => F.int(v) + " players",
+  });
+});
+const drawSticky = chart("play-sticky", host => {
+  const rows = playRows(), vals = rows.map(d => d.dau / d.mau);
+  lineChart(host, {
+    x: rows.map(d => d.date), height: 280, yMax: Math.max(...vals) * 1.15,
+    series: [{ name: "Loyalty", color: C.a, values: vals }],
+    yFmt: v => (v * 100).toFixed(0) + "%", xTicks: [0, rows.length - 1], xFmt: d => F.date(d),
+    tipTitle: d => F.date(d) + ", 2020", tipFmt: v => (v * 100).toFixed(1) + " out of 100",
+  });
+});
+function setPeriod(nDays) {
+  playDays = nDays; store.set("ga-period", String(nDays));
+  for (const b of document.querySelectorAll("#play-all, #play-90, #play-30")) b.setAttribute("aria-pressed", String(+b.dataset.days === nDays));
+  const rows = playRows(), stick = sum(rows.map(d => d.dau)) / sum(rows.map(d => d.mau));
+  kpis($("#play-kpis"), [
+    ["Players on a normal day", F.int(sum(rows.map(d => d.dau)) / rows.length), "Average for this time"],
+    ["Players this month", F.int(rows[rows.length - 1].mau), "Played at least once in 30 days"],
+    ["Loyalty", F.pct1(stick), `${Math.round(stick * 100)} out of 100 monthly players play on a normal day`],
+    ["New players", F.int(sum(rows.map(d => d.new_players))), "Joined in this time"],
+  ]);
+  drawActive(); drawSticky();
+}
+for (const b of document.querySelectorAll("#play-all, #play-90, #play-30")) b.addEventListener("click", () => setPeriod(+b.dataset.days));
+setPeriod(playDays);
+
+const segs = DATA.segments;
+const KIND = {
+  "One-and-done": ["Tried once", "0 days back", "Played on their first day and never came back."],
+  "Tried it": ["Visitors", "1-3 days back", "Came back a few times, then stopped."],
+  "Regular": ["Regulars", "4-7 days back", "Came back about once or twice a week. They have the habit."],
+  "Core": ["Superfans", "8+ days back", "Came back 8 days or more. Nobody came back more than 13 of 30 days."],
+};
+let pickSeg = rememberPick("ga-pick-seg", 3);
+legend($("#play-seg-legend"), [["Share of players", C.muted], ["Share of all visits", C.a]]);
+const drawSeg = chart("play-seg", host => barChart(host, {
+  cats: segs.map(s => `${KIND[s.segment][0]}\n${KIND[s.segment][1]}`), height: 250,
+  groups: [{ name: "Players", color: C.muted, values: segs.map(s => s.share_of_players) },
+           { name: "Visits", color: C.a, values: segs.map(s => s.share_of_logins) }],
+  yFmt: v => (v * 100).toFixed(0) + "%", selected: pickSeg,
+  onSelect: ci => { pickSeg = ci; store.set("ga-pick-seg", ci); drawSeg(); showSeg(); },
+  tip: ci => `<div class="t">${KIND[segs[ci].segment][0]}</div>${tipRow(C.muted, "Out of 100 players", Math.round(segs[ci].share_of_players * 100))}${tipRow(C.a, "Out of 100 visits", Math.round(segs[ci].share_of_logins * 100))}`,
+}));
+function showSeg() {
+  const s = segs[pickSeg], k = KIND[s.segment];
+  detail($("#play-detail"), "Meet the", k[0], k[2] + ` They are ${Math.round(s.share_of_players * 100)} out of 100 new players, and they make ${Math.round(s.share_of_logins * 100)} out of 100 of all visits.`,
+    [[F.int(s.players), "players"], [F.num(s.avg_return_days, 1), "days back, on average"], [F.pct1(s.share_of_logins), "of all visits"]]);
+}
+showSeg();
+
+/* ------------------------------------------------------------------ level 4: spending */
+const tiers = DATA.tiers, payTiers = ["1-499", "500-1,999", "2,000-9,999", "10,000+"];
+const TIER = { "1-499": "Small buyers", "500-1,999": "Medium buyers", "2,000-9,999": "Big buyers", "10,000+": "Huge spenders" };
+const tier = (g, t) => tiers.find(r => r.testgroup === g && r.tier === t) || { players: 0, revenue: 0, share_of_group_revenue: 0 };
+function groupStats(g, withWhales) {
+  const rows = tiers.filter(r => r.testgroup === g && (withWhales || r.tier !== "10,000+"));
+  const players = sum(rows.map(r => r.players)), payers = sum(rows.filter(r => r.tier !== "Non-payer").map(r => r.players));
+  const revenue = sum(rows.map(r => r.revenue));
+  return { players, payers, revenue, conversion: payers / players, arpu: revenue / players, arppu: revenue / payers };
+}
+const whales = () => $("#spend-whales").checked;
+function drawSpendTable() {
+  const wh = whales(), a = groupStats("a", wh), b = groupStats("b", wh);
+  const rel = (x, y) => { const d = (y - x) / x; return Math.abs(d) < 0.0005 ? "same" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d * 100).toFixed(0) + "%"; };
+  const rows = [
+    ["Players", F.int(a.players), F.int(b.players), ""],
+    ["Players who bought", F.int(a.payers), F.int(b.payers), rel(a.payers, b.payers)],
+    ["Buy rate", "1 in " + Math.round(1 / a.conversion), "1 in " + Math.round(1 / b.conversion), rel(a.conversion, b.conversion)],
+    ["Money made", F.int(a.revenue), F.int(b.revenue), rel(a.revenue, b.revenue)],
+    ["Money per player", F.num(a.arpu), F.num(b.arpu), rel(a.arpu, b.arpu)],
+    ["Money per buyer", F.int(a.arppu), F.int(b.arppu), rel(a.arppu, b.arppu)],
+  ];
+  if (wh) rows.push(["A typical buyer spends", F.int(M.median_payer_revenue_a), F.int(M.median_payer_revenue_b), rel(M.median_payer_revenue_a, M.median_payer_revenue_b)]);
+  table($("#spend-table"), ["", "Shop A", "Shop B", "B vs A"], rows);
+  $("#spend-whale-note").textContent = wh
+    ? `Shop A had ${T.group_a_10k_payers} huge spenders who paid 10,000 or more. They made ${Math.round(T.group_a_10k_revenue_share * 100)} out of every 100 of shop A's money. Shop B had none.`
+    : "Without the huge spenders, shop B is far ahead. But first we need to check whether they belong in the test.";
+  const tests = [testRow("Buy rate", "Did more players buy something?",
+    `Shop B: ${(T.conversion.diff * 100).toFixed(3)} of 100 players`, `range ${(T.conversion.ci_low * 100).toFixed(3)} to ${(T.conversion.ci_high * 100).toFixed(3)} · ${F.p(T.conversion.p_value)}`, T.conversion.p_value < 0.05)];
+  if (wh) tests.push(
+    testRow("Money per player", "Did each player bring in more money?", `Shop B: ${F.signed(T.arpu.diff)} per player`,
+      `range ${F.signed(T.arpu.ci_low)} to ${F.signed(T.arpu.ci_high)} · ${F.p(T.arpu.p_value)}`, T.arpu.p_value < 0.05),
+    testRow("Money per buyer", "Did each buyer spend more?", `Shop B: ${F.signed(T.arppu.diff, 0)} per buyer`,
+      `range ${F.signed(T.arppu.ci_low, 0)} to ${F.signed(T.arppu.ci_high, 0)} · ${F.p(T.arppu.p_value)}`, T.arppu.p_value < 0.05));
+  else tests.push(
+    testRow("Money per player, no huge spenders", "Same question, with the 123 left out", `Shop B: ${F.signed(T.arpu_without_10k_payers.diff)} per player`,
+      `range ${F.signed(T.arpu_without_10k_payers.ci_low)} to ${F.signed(T.arpu_without_10k_payers.ci_high)} · ${F.p(T.arpu_without_10k_payers.p_value)}`, T.arpu_without_10k_payers.p_value < 0.05));
+  $("#spend-tests").innerHTML = tests.join("");
+}
+let tierMetric = "revenue";
+let pickTier = rememberPick("ga-pick-tier", 3);
+const shownTiers = () => payTiers.filter(t => whales() || t !== "10,000+");
+legend($("#spend-tier-legend"), [["Shop A", C.a], ["Shop B", C.b]]);
+const drawTiers = chart("spend-tiers", host => {
+  const shown = shownTiers();
+  barChart(host, {
+    cats: shown.map(t => `${TIER[t]}\n${t}`), height: 260,
+    groups: ["a", "b"].map(g => ({ name: "Shop " + g.toUpperCase(), color: C[g], values: shown.map(t => tier(g, t)[tierMetric]) })),
+    yFmt: F.short, selected: pickTier,
+    onSelect: ci => { pickTier = ci; store.set("ga-pick-tier", ci); drawTiers(); showTier(); },
+    tip: ci => `<div class="t">${TIER[shown[ci]]} (spent ${shown[ci]})</div>` +
+      ["a", "b"].map(g => tipRow(C[g], `Shop ${g.toUpperCase()}`, tierMetric === "revenue" ? F.int(tier(g, shown[ci]).revenue) + " money" : F.int(tier(g, shown[ci]).players) + " buyers")).join(""),
+  });
+});
+function showTier() {
+  const shown = shownTiers(); if (pickTier >= shown.length) pickTier = shown.length - 1;
+  const t = shown[pickTier], a = tier("a", t), b = tier("b", t);
+  const who = a.players && !b.players ? "Only shop A has players like this." : b.players && !a.players ? "Only shop B has players like this." : "";
+  detail($("#spend-detail"), "You picked", `${TIER[t]}`, `Players who spent ${t}. ${who}`,
+    [[F.int(a.players), "buyers in shop A"], [F.int(b.players), "buyers in shop B"],
+     [F.pct1(a.share_of_group_revenue), "of shop A's money"], [F.pct1(b.share_of_group_revenue), "of shop B's money"]]);
+}
+for (const b of document.querySelectorAll("#spend-rev, #spend-pay")) b.addEventListener("click", () => {
+  tierMetric = b.dataset.v;
+  for (const x of document.querySelectorAll("#spend-rev, #spend-pay")) x.setAttribute("aria-pressed", String(x === b));
+  drawTiers();
+});
+$("#spend-whales").addEventListener("change", () => { drawSpendTable(); showTier(); drawTiers(); });
+drawSpendTable(); showTier();
+
+const H = DATA.payer_hist, edge = i => H.edges[i];
+legend($("#spend-hist-legend"), [["Shop A", C.a], ["Shop B", C.b]]);
+const histCats = H.a.map((_, i) => { const p = [1, 10, 100, 1000, 10000].find(p => edge(i) <= p && edge(i + 1) > p); return p ? F.short(p) : ""; });
+chart("spend-hist", host => barChart(host, {
+  cats: histCats, height: 240, labelAt: i => histCats[i] !== "",
+  groups: [{ name: "A", color: C.a, values: H.a }, { name: "B", color: C.b, values: H.b }],
+  yFmt: F.short,
+  tip: ci => `<div class="t">Spent ${F.int(edge(ci))} to ${F.int(edge(ci + 1))}</div>${tipRow(C.a, "Shop A buyers", F.int(H.a[ci]))}${tipRow(C.b, "Shop B buyers", F.int(H.b[ci]))}`,
+}));
+
+/* ------------------------------------------------------------------ power-up lab */
+const yearPlayers = f.window.new_players / DATA.window_days * 365;
+const baseR7 = O.returned_within_7d;
+const offers = {
+  a: { name: "Shop A (the old one)", ...groupStats("a", true) },
+  b: { name: "Shop B (the new one)", ...groupStats("b", true) },
+  a_core: { name: "Shop A without its 123 huge spenders", ...groupStats("a", false) },
+};
+const W = { ret: $("#lab-return"), offer: $("#lab-offer"), conv: $("#lab-conv"), spend: $("#lab-spend") };
+$("#lab-volume").textContent = `About ${F.int(yearPlayers)} new players join each year.`;
+function project(s) {
+  const o = offers[s.offer], r7 = baseR7 + s.ret / 100;
+  // Buyers come from players who come back, at each shop's measured rate.
+  const payRate = o.conversion / baseR7 * (1 + s.conv / 100);
+  const returners = yearPlayers * r7, payers = returners * payRate, revenue = payers * o.arppu * (1 + s.spend / 100);
+  return { r7, returners, payers, revenue };
+}
+const state = () => ({ ret: +W.ret.value, offer: W.offer.value, conv: +W.conv.value, spend: +W.spend.value });
+const TODAY = { ret: 0, offer: "a", conv: 0, spend: 0 };
+function deltaHtml(now, then) {
+  const d = (now - then) / then;
+  if (Math.abs(d) < 0.0005) return `<span class="delta flat">Same as today</span>`;
+  return `<span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "▲ +" : "▼ −"}${Math.abs(d * 100).toFixed(1)}%</span>`;
+}
+function meter(now, then) {
+  const mx = Math.max(now, then) || 1;
+  return `<div class="meter"><div><span>Today</span><span class="track"><span class="fill" style="width:${(then / mx * 100).toFixed(1)}%;background:var(--axis)"></span></span></div>
+    <div><span>Your plan</span><span class="track"><span class="fill" style="width:${(now / mx * 100).toFixed(1)}%;background:var(--accent)"></span></span></div></div>`;
+}
+const pctLabel = v => v ? (v > 0 ? "+" : "−") + Math.abs(v) + "%" : "No change";
+function renderLab() {
+  const s = state(), p = project(s), b0 = project(TODAY);
+  $("#lab-return-out").textContent = s.ret ? `${Math.round(p.r7 * 1000) / 10} of 100` : `${Math.round(p.r7 * 1000) / 10} of 100 now`;
+  $("#lab-offer-out").textContent = `${F.int(offers[s.offer].arppu)} per buyer`;
+  $("#lab-conv-out").textContent = pctLabel(s.conv);
+  $("#lab-spend-out").textContent = pctLabel(s.spend);
+  const rows = [
+    ["Players who come back", p.returners, b0.returners, F.int],
+    ["Players who buy", p.payers, b0.payers, F.int],
+    ["Money made", p.revenue, b0.revenue, F.short],
+  ];
+  $("#lab-outcomes").innerHTML = rows.map(([label, now, then, fm]) =>
+    `<div class="outcome"><div class="outcome-top"><div><div class="label">${label}</div><div class="big">${fm(now)}</div></div>${deltaHtml(now, then)}</div>${meter(now, then)}</div>`).join("");
+  $("#lab-assumptions").innerHTML = [
+    `About ${F.int(yearPlayers)} new players a year: the 2020 joining rate (${F.int(f.window.new_players)} players in ${DATA.window_days} days).`,
+    `Today ${(baseR7 * 100).toFixed(1)} out of 100 new players come back in their first week. The first power-up adds to that.`,
+    "Only players who come back buy things. Each shop keeps the buy rate and money per buyer it had in the experiment.",
+    "Money made = players who buy × money per buyer.",
+    "The game data looks computer-made, so this is for practice and comparing ideas, not a promise.",
+  ].map(t => `<li>${esc(t)}</li>`).join("");
+  store.set("ga-lab", JSON.stringify(s));
+  $("#lab-status").textContent = "";
+}
+function planText() {
+  const s = state(), p = project(s), b0 = project(TODAY), pct = (n, o) => ((n - o) / o * 100).toFixed(1) + "%";
+  return [
+    "My game power-up plan",
+    `Week-one comeback: ${(p.r7 * 100).toFixed(1)} of 100 players (+${s.ret} more)`,
+    `Shop: ${offers[s.offer].name}. More buyers: ${pctLabel(s.conv)}. Bigger spending: ${pctLabel(s.spend)}`,
+    `Players who come back: ${F.int(p.returners)} (today ${F.int(b0.returners)}, ${pct(p.returners, b0.returners)})`,
+    `Players who buy: ${F.int(p.payers)} (today ${F.int(b0.payers)}, ${pct(p.payers, b0.payers)})`,
+    `Money made: ${F.int(p.revenue)} (today ${F.int(b0.revenue)}, ${pct(p.revenue, b0.revenue)})`,
+  ].join("\n");
+}
+for (const k of Object.values(W)) { k.addEventListener("input", renderLab); k.addEventListener("change", renderLab); }
+$("#lab-reset").addEventListener("click", () => { W.ret.value = 0; W.offer.value = "a"; W.conv.value = 0; W.spend.value = 0; renderLab(); });
+$("#lab-copy").addEventListener("click", () => {
+  const text = planText(), fall = $("#lab-copytext");
+  navigator.clipboard.writeText(text).then(() => {
+    fall.hidden = true; $("#lab-status").textContent = "Copied! Paste it anywhere.";
+  }).catch(() => {
+    fall.value = text; fall.hidden = false; fall.select(); $("#lab-status").textContent = "Copying is blocked here. Your plan is selected below.";
+  });
+});
+try {
+  const saved = JSON.parse(store.get("ga-lab") || "null");
+  if (saved && offers[saved.offer]) { W.ret.value = saved.ret; W.offer.value = saved.offer; W.conv.value = saved.conv; W.spend.value = saved.spend; }
+} catch {}
+renderLab();
+
+/* ------------------------------------------------------------------ live background: deep space */
+(function spaceBackground() {
+  const cv = $("#bg-space"), ctx = cv.getContext("2d");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TINTS = ["255,255,255", "255,255,255", "255,255,255", "255,214,214", "200,220,255", "214,255,240", "232,214,255"];
+  let w = 0, h = 0, t = 0, stars = [], meteors = [];
+  function resize() {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.round(Math.min(420, w * h / 4200));
+    // Three depth layers: far stars are small and slow, near stars bigger and faster.
+    stars = Array.from({ length: n }, () => {
+      const layer = Math.random() < 0.6 ? 0 : Math.random() < 0.75 ? 1 : 2;
+      return { x: Math.random() * w, y: Math.random() * h, layer, r: [0.5, 0.9, 1.5][layer] * (0.7 + Math.random() * 0.6),
+               a: 0.35 + Math.random() * 0.6, tw: Math.random() * Math.PI * 2, tws: 0.01 + Math.random() * 0.03,
+               c: TINTS[Math.floor(Math.random() * TINTS.length)] };
+    });
+  }
+  function meteor() {
+    const fromTop = Math.random() < 0.7;
+    meteors.push({ x: fromTop ? Math.random() * w * 0.8 + w * 0.2 : w + 20, y: fromTop ? -20 : Math.random() * h * 0.4,
+                   vx: -(6 + Math.random() * 6), vy: 3 + Math.random() * 3, life: 1, len: 90 + Math.random() * 120 });
+  }
+  function planet() {
+    const px = w * 0.86, py = h * 0.8, pr = Math.max(60, Math.min(w, h) * 0.11);
+    const g = ctx.createRadialGradient(px - pr * 0.4, py - pr * 0.4, pr * 0.1, px, py, pr);
+    g.addColorStop(0, "rgba(140, 90, 255, 0.55)"); g.addColorStop(0.6, "rgba(90, 40, 160, 0.35)"); g.addColorStop(1, "rgba(255, 71, 71, 0.18)");
+    ctx.save();
+    ctx.shadowColor = "rgba(140, 90, 255, 0.6)"; ctx.shadowBlur = 40;
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.translate(px, py); ctx.rotate(-0.35 + Math.sin(t * 0.002) * 0.03);
+    ctx.strokeStyle = "rgba(245, 184, 46, 0.35)"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, 0, pr * 1.75, pr * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, 0, pr * 2.05, pr * 0.5, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    planet();
+    for (const s of stars) {
+      const a = s.a * (0.6 + 0.4 * Math.sin(s.tw));
+      ctx.fillStyle = `rgba(${s.c},${a})`;
+      if (s.layer === 2) { ctx.shadowColor = `rgba(${s.c},${a})`; ctx.shadowBlur = 6; }
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    for (const m of meteors) {
+      const k = Math.hypot(m.vx, m.vy), tx = m.x - m.vx / k * m.len, ty = m.y - m.vy / k * m.len;
+      const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+      g.addColorStop(0, `rgba(255,255,255,${0.9 * m.life})`); g.addColorStop(0.3, `rgba(255,120,120,${0.45 * m.life})`); g.addColorStop(1, "rgba(255,71,71,0)");
+      ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+    }
+  }
+  function tick() {
+    if (!document.hidden) {
+      t++;
+      for (const s of stars) {
+        s.x += [0.02, 0.06, 0.14][s.layer]; s.y += [0.01, 0.025, 0.06][s.layer]; s.tw += s.tws;
+        if (s.x > w + 2) s.x = -2; if (s.y > h + 2) s.y = -2;
+      }
+      for (const m of meteors) { m.x += m.vx; m.y += m.vy; m.life -= 0.012; }
+      meteors = meteors.filter(m => m.life > 0 && m.x > -200 && m.y < h + 200);
+      if (meteors.length < 2 && Math.random() < 0.006) meteor();
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+  resize(); draw();
+  addEventListener("resize", () => { resize(); draw(); });
+  if (!still) requestAnimationFrame(tick);
+})();
+
+/* ------------------------------------------------------------------ Neon Dash (mini game) */
+const Game = (() => {
+  const arcade = $("#arcade"), cv = $("#game"), ctx = cv.getContext("2d");
+  const W = 360, H = 480, RW = 252, RX = (W - RW) / 2, LW = RW / 3, CW = 40, CH = 64, PY = H - 100;
+  const PAINT = ["#ff4747", "#d95926", "#199e70", "#8c5aff", "#f5b82e"];
+  let s, raf = 0, best = +(store.get("ga-best") || 0), opener = null;
+  const laneX = l => RX + LW * l + LW / 2;
+  function reset() { s = { lane: 1, x: laneX(1), cars: [], speed: 4, dist: 0, over: false, dash: 0, gap: 60 }; }
+  function car(x, y, color, me) {
+    ctx.save(); ctx.translate(x - CW / 2, y);
+    ctx.shadowColor = color; ctx.shadowBlur = me ? 18 : 10;
+    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(0, 0, CW, CH, 9); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(8, 8, 18, 0.85)";
+    ctx.beginPath(); ctx.roundRect(6, me ? 12 : 30, CW - 12, 16, 4); ctx.fill();
+    ctx.fillStyle = me ? "#fff6c8" : "#ff2a2a";
+    const ly = me ? 2 : CH - 6;
+    ctx.fillRect(5, ly, 8, 4); ctx.fillRect(CW - 13, ly, 8, 4);
+    ctx.restore();
+  }
+  function draw() {
+    ctx.fillStyle = "#0a0a16"; ctx.fillRect(0, 0, W, H);
+    for (let y = -40 + (s.dash % 40); y < H; y += 40) {             // roadside stripes
+      ctx.fillStyle = "rgba(140, 90, 255, 0.18)"; ctx.fillRect(0, y, RX - 6, 20); ctx.fillRect(RX + RW + 6, y, RX - 6, 20);
+    }
+    ctx.fillStyle = "#15152a"; ctx.fillRect(RX, 0, RW, H);
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ff4747"; ctx.shadowColor = "#ff4747"; ctx.fillRect(RX - 4, 0, 4, H);
+    ctx.fillStyle = "#3987e5"; ctx.shadowColor = "#3987e5"; ctx.fillRect(RX + RW, 0, 4, H);
+    ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    for (const l of [1, 2]) for (let y = -40 + (s.dash % 40); y < H; y += 40) ctx.fillRect(RX + LW * l - 2, y, 4, 22);
+    for (const c of s.cars) car(laneX(c.lane), c.y, c.color, false);
+    car(s.x, PY, "#3987e5", true);
+    ctx.fillStyle = "#ffffff"; ctx.font = "800 22px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+    ctx.textAlign = "left"; ctx.fillText("SCORE " + Math.floor(s.dist / 10), 12, 28);
+    ctx.textAlign = "right"; ctx.fillStyle = "#f5b82e"; ctx.fillText("BEST " + best, W - 12, 28);
+    if (s.over) {
+      ctx.fillStyle = "rgba(5, 5, 12, 0.74)"; ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = "center"; ctx.fillStyle = "#ff4747"; ctx.font = "800 54px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+      ctx.fillText("CRASH!", W / 2, H / 2 - 30);
+      ctx.fillStyle = "#ffffff"; ctx.font = "700 24px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+      ctx.fillText("Score " + Math.floor(s.dist / 10) + (Math.floor(s.dist / 10) >= best && best > 0 ? "  New best!" : ""), W / 2, H / 2 + 10);
+      ctx.fillStyle = "#c7ccd6"; ctx.font = "500 16px 'Barlow', sans-serif";
+      ctx.fillText("Tap or press Space to race again", W / 2, H / 2 + 44);
+    }
+  }
+  function step() {
+    if (!s.over) {
+      s.speed = Math.min(13, s.speed + 0.004); s.dist += s.speed; s.dash += s.speed;
+      s.x += (laneX(s.lane) - s.x) * 0.35;
+      s.gap -= s.speed;
+      if (s.gap <= 0) {
+        const lanes = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, Math.random() < 0.3 && s.speed > 6 ? 2 : 1);
+        for (const lane of lanes) s.cars.push({ lane, y: -CH - 10, color: PAINT[Math.floor(Math.random() * PAINT.length)] });
+        s.gap = 150 + Math.random() * 110;
+      }
+      for (const c of s.cars) c.y += s.speed * 0.75;
+      s.cars = s.cars.filter(c => c.y < H + 10);
+      for (const c of s.cars) {
+        if (Math.abs(laneX(c.lane) - s.x) < CW - 6 && c.y + CH > PY + 6 && c.y < PY + CH - 6) {
+          s.over = true;
+          const score = Math.floor(s.dist / 10);
+          if (score > best) { best = score; store.set("ga-best", String(best)); }
+        }
+      }
+    }
+    draw();
+    raf = requestAnimationFrame(step);
+  }
+  const left = () => { if (!s.over) s.lane = Math.max(0, s.lane - 1); };
+  const right = () => { if (!s.over) s.lane = Math.min(2, s.lane + 1); };
+  function open() {
+    opener = document.activeElement;
+    arcade.hidden = false; reset(); cancelAnimationFrame(raf); raf = requestAnimationFrame(step);
+    $("#arcade-close").focus();
+  }
+  function close() {
+    cancelAnimationFrame(raf); arcade.hidden = true;
+    if (opener && opener.focus) opener.focus();
+  }
+  document.addEventListener("keydown", ev => {
+    if (arcade.hidden) return;
+    if (["ArrowLeft", "a", "A"].includes(ev.key)) { ev.preventDefault(); left(); }
+    else if (["ArrowRight", "d", "D"].includes(ev.key)) { ev.preventDefault(); right(); }
+    else if ((ev.key === " " || ev.key === "Enter") && s.over && document.activeElement?.id !== "arcade-close") { ev.preventDefault(); reset(); }
+    else if (ev.key === "Escape") close();
+  });
+  cv.addEventListener("pointerdown", ev => {
+    if (s.over) { reset(); return; }
+    const r = cv.getBoundingClientRect();
+    (ev.clientX - r.left < r.width / 2 ? left : right)();
+  });
+  $("#go-left").addEventListener("click", left);
+  $("#go-right").addEventListener("click", right);
+  $("#arcade-close").addEventListener("click", close);
+  arcade.addEventListener("click", ev => { if (ev.target === arcade) close(); });
+  return { open };
+})();
+
+/* ------------------------------------------------------------------ Coach (built-in helper) */
+(function coach() {
+  const panel = $("#coach"), openBtn = $("#coach-open"), chat = $("#chat"), input = $("#ask-input");
+  const quick = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const pct = v => Math.round(v * 100);
+  const shopA = groupStats("a", true), shopB = groupStats("b", true);
+  const topics = [
+    { keys: ["what is the game", "what's the game", "whats the game", "what game", "which game", "game is this", "game this", "data about", "game called", "about the game", "name of the game", "what is this"],
+      answer: () => ["The numbers come from two games. Levels 2 to 4 use a mobile game from the <b>Gamelytics</b> dataset on Kaggle; its name isn't shared, and the data looks computer-made, so it's practice data. The gate experiment on Level 1 comes from <b>Cookie Cats</b>, a real match-3 puzzle game by Tactile Entertainment where you line up cookies to feed hungry cats.", [{ label: "See Level 1", go: "start" }]] },
+    { local: true, keys: ["bored", "play a game", "play the game", "play neon", "let's play", "lets play", "let's race", "race", "racing", "neon dash", "mini game", "minigame"],
+      answer: () => ["Let's race! In Neon Dash you dodge traffic for as long as you can. Your best score is saved.", [{ label: "Play Neon Dash", game: true }]] },
+    { keys: ["problem", "worst", "biggest", "issue", "wrong", "bad"], answer: () => [`The biggest problem: <b>${nNever} out of 100</b> new players play once and never come back. The ones who do come back all do it within a week.`, [{ label: "See Level 1", go: "start" }]] },
+    { keys: ["shop", "money", "revenue", "buy", "spend", "pay", "arpu", "win"], answer: () => [`Shop B made a little more money per player (${F.num(shopB.arpu)} vs ${F.num(shopA.arpu)}), but that <b>could be luck</b>. Shop A's money mostly came from ${T.group_a_10k_payers} huge spenders. A typical shop B buyer spent ${F.int(M.median_payer_revenue_b)}; a typical shop A buyer spent ${F.int(M.median_payer_revenue_a)}.`, [{ label: "See Level 4", go: "spend" }]] },
+    { keys: ["superfan", "fan", "segment", "kind", "loyal", "regular", "visitor"], answer: () => [`Superfans came back 8 or more days in their first month. They're only ${pct(E.segments.Core.share_of_players)} out of 100 new players, but they make ${pct(E.segments.Core.share_of_logins)} out of 100 of all visits.`, [{ label: "Meet them on Level 3", go: "play" }]] },
+    { keys: ["gate", "level 30", "level 40", "cookie", "wait"], answer: () => [`In Cookie Cats, putting the first gate at level 40 instead of 30 meant fewer players came back a week later: ${(O.gate_test.d7.rate_b * 100).toFixed(1)} vs ${(O.gate_test.d7.rate_a * 100).toFixed(1)} out of 100. That's a <b>real difference</b>, so keep it at 30.`, [{ label: "See the experiment", go: "start" }]] },
+    { keys: ["come back", "retention", "return", "day 1", "day 7", "day 30", "next day"], answer: () => [`Out of 100 new players, about ${(R.d1 * 100).toFixed(0)} play again on day 1, ${(R.d7 * 100).toFixed(0)} on day 7 and ${(R.d30 * 100).toFixed(0)} on day 30. The busiest comeback day is day ${R.peak_day}.`, [{ label: "See Level 2", go: "back" }]] },
+    { keys: ["daily", "each day", "how many play", "dau", "active", "players play"], answer: () => [`On a normal day lately, about <b>${F.int(E.dau_last30_avg)}</b> people play. About ${pct(E.stickiness_last30_avg)} out of 100 of this month's players show up on any given day.`, [{ label: "See Level 3", go: "play" }]] },
+    { keys: ["lab", "what if", "power", "plan", "improve", "better"], answer: () => ["In the Power-up lab you slide power-ups, like more players coming back or a different shop, and see players, buyers and money for a whole year.", [{ label: "Open the lab", go: "lab" }]] },
+    { keys: ["review", "reviews", "players say", "complain", "complaint", "feedback", "stars"],
+      answer: () => ["I read 25,719 Google Play reviews of 9 match-3 games. The biggest complaints: levels that feel too hard (4 times more common in 1-star reviews than 5-star), bugs, lost progress, stingy rewards, prices and ads. The thing players love most is that the game is <b>fun and relaxing</b>.", []] },
+    { keys: ["data", "where", "source", "real", "kaggle"], answer: () => ["The numbers come from two free Kaggle datasets: Gamelytics (1 million players) and Cookie Cats (90,189 players). Cookie Cats is a real game. The Gamelytics data looks computer-made, so treat it as practice data.", []] },
+    { keys: ["hi", "hello", "hey", "yo"], answer: () => ["Hi! Ask me anything about the players in this game, or tap a question below.", []] },
+    { keys: ["help", "what can", "who are you"], answer: () => ["I'm Coach. I know every number on this page. Ask about players coming back, the shops, superfans or the gate experiment, or say you're bored and we'll race.", []] },
+  ];
+  const chips = ["Biggest problem?", "What game is this?", "Which shop wins?", "Who are superfans?", "Do players come back?", "I'm bored, let's play"];
+  function say(html, acts, who) {
+    const m = document.createElement("div");
+    m.className = "msg " + who;
+    m.innerHTML = html + (acts && acts.length ? `<div class="acts">${acts.map(a =>
+      a.game ? `<button type="button" class="play" data-game="1">${esc(a.label)}</button>`
+             : `<button type="button" data-goto="${a.go}">${esc(a.label)}</button>`).join("")}</div>` : "");
+    chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+  }
+  function reply(text) {
+    const q = text.toLowerCase();
+    const hit = topics.find(t => t.keys.some(k => new RegExp("\\b" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(q)));
+    const [html, acts] = hit ? hit.answer()
+      : ["I only know about this dashboard. Try asking about players coming back, the shops, superfans, or say you're bored.", []];
+    // Games and greetings stay local; everything else goes to the API when the proxy is set up.
+    if (COACH_API && !(hit && hit.local)) { askApi(text, html, acts); return; }
+    setTimeout(() => { say(html, acts, "bot"); remember(text, html); }, quick ? 320 : 0);
+  }
+  const history = [];
+  const plain = html => { const d = document.createElement("div"); d.innerHTML = html; return d.textContent; };
+  function remember(q, html) { history.push({ role: "user", content: q }, { role: "assistant", content: plain(html) }); history.splice(0, Math.max(0, history.length - 6)); }
+  async function askApi(text, fallbackHtml, acts) {
+    const m = document.createElement("div"); m.className = "msg bot"; m.textContent = "Coach is thinking…"; chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+    try {
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
+      const res = await fetch(COACH_API, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, history }), signal: ctl.signal });
+      clearTimeout(timer);
+      const body = await res.json();
+      if (!res.ok || !body.answer) throw new Error(body.error || res.status);
+      const html = esc(body.answer).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+      m.remove(); say(html, acts, "bot"); remember(text, html);
+    } catch {
+      m.remove(); say(fallbackHtml, acts, "bot"); remember(text, fallbackHtml);
+    }
+  }
+  function ask(text) { if (!text.trim()) return; say(esc(text), [], "me"); reply(text); }
+  function open() {
+    panel.hidden = false; openBtn.setAttribute("aria-expanded", "true");
+    if (!chat.childElementCount)
+      say(`Hi, I'm <b>Coach</b>! I can explain anything on this page. Fun fact: if 100 players join, about ${nNever} leave after day one. Want to know why, or want to play a quick race?`,
+        [{ label: "Play Neon Dash", game: true }], "bot");
+    input.focus();
+  }
+  function close() { panel.hidden = true; openBtn.setAttribute("aria-expanded", "false"); openBtn.focus(); }
+  if (COACH_API) $("#coach-mode").textContent = "Live answers · uses this page's numbers";
+  $("#chips").innerHTML = chips.map(c => `<button type="button">${esc(c)}</button>`).join("");
+  $("#chips").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) ask(b.textContent); });
+  $("#ask").addEventListener("submit", ev => { ev.preventDefault(); ask(input.value); input.value = ""; });
+  openBtn.addEventListener("click", () => panel.hidden ? open() : close());
+  $("#coach-close").addEventListener("click", close);
+  chat.addEventListener("click", ev => { if (ev.target.closest("[data-game]")) Game.open(); });
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !panel.hidden && $("#arcade").hidden) close(); });
+})();
+
+/* ------------------------------------------------------------------ level menu */
+const TABS = ["home", "start", "back", "play", "spend", "lab"];
+function showTab(id, focus) {
+  if (!TABS.includes(id)) id = "home";
+  for (const t of TABS) {
+    $("#p-" + t).hidden = t !== id;
+    const b = $("#tab-" + t); b.setAttribute("aria-selected", String(t === id)); b.tabIndex = t === id ? 0 : -1;
+  }
+  if (focus) $("#tab-" + id).focus();
+  store.set("ga-tab", id);
+  try { history.replaceState(null, "", "#" + id); } catch {}
+  hideTip();
+}
+for (const b of document.querySelectorAll(".tab")) b.addEventListener("click", () => showTab(b.dataset.tab));
+$(".tablist").addEventListener("keydown", ev => {
+  const i = TABS.indexOf(document.activeElement?.dataset?.tab);
+  if (i < 0 || !["ArrowLeft", "ArrowRight"].includes(ev.key)) return;
+  showTab(TABS[(i + (ev.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length], true);
+});
+document.addEventListener("click", ev => {
+  const go = ev.target.closest("[data-goto]");
+  if (go) { showTab(go.dataset.goto); scrollTo({ top: 0 }); }
+});
+showTab((location.hash || "").slice(1) || store.get("ga-tab") || "home");
+</script>

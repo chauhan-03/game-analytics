@@ -1,0 +1,3 @@
+expression DataFolder = "C:\game-analytics\outputs\powerbi\" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+
+	annotation PBI_ResultType = Text

@@ -1,0 +1,11 @@
+id,feature,source_of_idea,owner_team,partner_teams,status,stage,primary_metric,baseline,target,experiment,start,end,decision,utilization_metric,notes
+F1,First Week Journey: gentle start,Onboarding funnel review,Product,Design;Engineering;Analytics;QA,Spec ready,Discovery,Returned within 7 days,24.0%,+2 pts,3-arm A/B (arm B),,,,Share of new players completing levels 1-10,Spec 02 section 3A
+F2,First Week Journey: tomorrow's gift + 7-day calendar,Onboarding funnel review,Product,Design;Engineering;Art;CRM,Spec ready,Discovery,Returned within 7 days,24.0%,+2 pts,3-arm A/B (arm C),,,,Share of eligible players claiming the day-1 gift; calendar completion rate,Spec 02 sections 3B-3C
+F3,Welcome Week push copy test,Campaign brief,CRM,Product;Analytics,Planned,Discovery,Day-1 push open rate,TBD,+3 pts,3 copy variants,,,,Push opt-in rate; opens per send,Brief 03 section 5
+F4,Keep first gate at level 30,Cookie Cats A/B test,Design,Analytics,Decided,Evaluated,D7 retention,19.0%,hold,gate_30 vs gate_40 (done),,,Keep at 30 (p=0.002),n/a,Dashboard Level 1
+F5,Offer set B' (B + high-value bundle),Offer A/B test,Monetization,Economy design;Analytics,Planned,Discovery,ARPU,25.41 (A),> A,B' vs A,,,,Bundle view and purchase rate,Audit 123 10k+ payers first (Recommendation 5)
+F6,Audit 10k+ payers in offer test,Offer A/B test,Analytics,Payments;Fraud,To do,Discovery,Data quality,n/a,n/a,n/a,,,,n/a,Assignment check; refunds; test accounts
+F7,Stuck help (hint + booster after 3 fails),Review mining,Design,Engineering;Analytics,Idea,Discovery,Level completion rate,TBD,TBD,A/B on levels with >30% fail rate,,,,Share of stuck players using help,Competitive review proposal 5
+F8,Co-op Duo Builds event,Competitive review,Live ops,Design;Engineering;Art;Community,Idea,Discovery,D30 retention of Regulars,TBD,TBD,Event A/B on Regulars,,,,Event participation rate,Competitive review proposal 2
+F9,Weekly 50-player race,Competitive review,Live ops,Design;Engineering,Idea,Discovery,Sessions per DAU,TBD,TBD,Template event,,,,Share of DAU joining a race,Competitive review proposal 3
+F10,Crash and save hardening,Review mining,Engineering,QA;Support,To do,Delivery,Crash-free sessions,TBD,99.5%,n/a,,,,n/a,Bugs 3.3x and lost progress 3.0x in 1-2 star reviews

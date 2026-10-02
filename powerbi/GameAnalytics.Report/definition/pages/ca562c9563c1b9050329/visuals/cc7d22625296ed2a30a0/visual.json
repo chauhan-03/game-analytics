@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "cc7d22625296ed2a30a0",
+  "position": {
+    "x": 16,
+    "y": 128,
+    "z": 4000,
+    "width": 1248,
+    "height": 260,
+    "tabOrder": 4000
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "retention_curve"
+                    }
+                  },
+                  "Property": "day_n"
+                }
+              },
+              "queryRef": "retention_curve.day_n",
+              "nativeQueryRef": "day_n"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "retention_curve"
+                    }
+                  },
+                  "Property": "Day-N Retention"
+                }
+              },
+              "queryRef": "retention_curve.Day-N Retention",
+              "nativeQueryRef": "Day-N Retention"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Day-N retention curve'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

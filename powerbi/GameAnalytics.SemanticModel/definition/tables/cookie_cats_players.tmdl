@@ -1,0 +1,75 @@
+table cookie_cats_players
+
+	measure 'CC Players' = COUNTROWS ( cookie_cats_players )
+		formatString: #,0
+
+	measure 'CC D1 Retention' = DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[retention_1] = TRUE () ), [CC Players] )
+		formatString: 0.0%
+
+	measure 'CC D7 Retention' = DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[retention_7] = TRUE () ), [CC Players] )
+		formatString: 0.0%
+
+	measure 'CC Reached 30 Rounds %' = DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[sum_gamerounds] >= 30 ), [CC Players] )
+		formatString: 0.0%
+
+	measure 'CC Under 10 Rounds %' = DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[sum_gamerounds] < 10 ), [CC Players] )
+		formatString: 0.0%
+
+	measure 'Gate 40 vs 30 D7 (pp)' =
+			CALCULATE ( [CC D7 Retention], cookie_cats_players[version] = "gate_40" )
+			    - CALCULATE ( [CC D7 Retention], cookie_cats_players[version] = "gate_30" )
+		formatString: +0.0%;-0.0%;0.0%
+
+	column userid
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: userid
+
+	column version
+		dataType: string
+		summarizeBy: none
+		sourceColumn: version
+
+	column sum_gamerounds
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: sum_gamerounds
+
+	column retention_1
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: retention_1
+
+	column retention_7
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: retention_7
+
+	column rounds_bucket
+		dataType: string
+		summarizeBy: none
+		sourceColumn: rounds_bucket
+
+	partition cookie_cats_players = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        if Text.StartsWith(DataFolder, "http")
+				            then Web.Contents(DataFolder, [RelativePath = "cookie_cats_players.csv"])
+				            else File.Contents(DataFolder & "cookie_cats_players.csv"),
+				        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {
+				        {"userid", Int64.Type},
+				        {"version", type text},
+				        {"sum_gamerounds", Int64.Type},
+				        {"retention_1", type logical},
+				        {"retention_7", type logical},
+				        {"rounds_bucket", type text}
+				    }, "en-US")
+				in
+				    Typed

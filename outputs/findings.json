@@ -1,0 +1,150 @@
+{
+  "window": {
+    "cohort_start": "2020-01-01",
+    "last_full_day": "2020-09-22",
+    "new_players": 353915,
+    "players_with_30_days": 305832
+  },
+  "retention": {
+    "d1": 0.020149088493615765,
+    "d3": 0.046269340974212037,
+    "d7": 0.058134272358044047,
+    "d14": 0.045745377905133444,
+    "d30": 0.028509116116037563,
+    "peak_day": 6,
+    "peak_retention": 0.06915270787078476,
+    "best_cohort_d7": 0.0630398823745635,
+    "worst_cohort_d7": 0.0517503805175038
+  },
+  "onboarding": {
+    "players": 305832,
+    "never_returned_30d": 0.7604436422611107,
+    "returned_within_7d": 0.23955635773888934,
+    "returners_back_on_d1": 0.08384745577637039,
+    "median_first_return_day": 4.0,
+    "first_return_on_d1_share_of_all": 0.020086191111459886,
+    "cookie_cats_never_played": 0.0442847797403231,
+    "cookie_cats_under_10_rounds": 0.37961392187517323,
+    "gate_test": {
+      "d1": {
+        "rate_a": 0.4481879194630872,
+        "rate_b": 0.44228274967574577,
+        "diff": -0.005905169787341458,
+        "ci_low": -0.012392558656738065,
+        "ci_high": 0.0005822190820551484,
+        "z": -1.7840862247974725,
+        "p_value": 0.07440965529691913
+      },
+      "d7": {
+        "rate_a": 0.19020134228187918,
+        "rate_b": 0.18200004396667327,
+        "diff": -0.008201298315205913,
+        "ci_low": -0.01328164577146224,
+        "ci_high": -0.003120950858949586,
+        "z": -3.164358912748191,
+        "p_value": 0.001554249975614329
+      }
+    },
+    "gate_30_reached_30_rounds": 0.37261744966442956
+  },
+  "engagement": {
+    "dau_jan_avg": 10453.09677419355,
+    "dau_last30_avg": 15461.166666666666,
+    "mau_last_day": 102241,
+    "stickiness_last30_avg": 0.15490143023661185,
+    "returning_share_of_dau_last30": 0.8963359815451616,
+    "segments": {
+      "One-and-done": {
+        "share_of_players": 0.7604436422611107,
+        "share_of_logins": 0.33211237395915
+      },
+      "Tried it": {
+        "share_of_players": 0.056733762327029216,
+        "share_of_logins": 0.07425003819960616
+      },
+      "Regular": {
+        "share_of_players": 0.14165947317481492,
+        "share_of_logins": 0.4247067912473635
+      },
+      "Core": {
+        "share_of_players": 0.04116312223704518,
+        "share_of_logins": 0.16893079659388036
+      }
+    }
+  },
+  "monetization": {
+    "players_a": 202103.0,
+    "payers_a": 1928.0,
+    "conversion_a": 0.009539690157988749,
+    "revenue_a": 5136189.0,
+    "arpu_a": 25.413719736965806,
+    "arppu_a": 2663.9984439834025,
+    "median_payer_revenue_a": 311.0,
+    "top_1pct_payer_revenue_share_a": 0.1382295316624836,
+    "players_b": 202667.0,
+    "payers_b": 1805.0,
+    "conversion_b": 0.008906235351586593,
+    "revenue_b": 5421603.0,
+    "arpu_b": 26.75128659327863,
+    "arppu_b": 3003.6581717451522,
+    "median_payer_revenue_b": 3022.0,
+    "top_1pct_payer_revenue_share_b": 0.013252906935458018,
+    "tests": {
+      "conversion": {
+        "rate_a": 0.009539690157988749,
+        "rate_b": 0.008906235351586593,
+        "diff": -0.0006334548064021554,
+        "ci_low": -0.0012224522825066756,
+        "ci_high": -4.4457330297635296e-05,
+        "z": -2.108028495889841,
+        "p_value": 0.035028524642854865
+      },
+      "arpu": {
+        "diff": 1.3375668563128222,
+        "ci_low": -2.8597924192196986,
+        "ci_high": 5.505631227651213,
+        "p_value": 0.5068
+      },
+      "arppu": {
+        "diff": 339.65972776174976,
+        "ci_low": -60.26844680664581,
+        "ci_high": 745.5208347246006,
+        "p_value": 0.098
+      },
+      "arpu_without_10k_payers": {
+        "diff": 24.048360560998205,
+        "ci_low": 22.80779642926375,
+        "ci_high": 25.321541705569274,
+        "p_value": 0.0
+      },
+      "group_a_10k_payers": 123,
+      "group_a_10k_revenue_share": 0.8937077665950377
+    }
+  },
+  "player_voice": {
+    "reviews": 25719,
+    "games": 9,
+    "avg_stars": 3.2428165947354097,
+    "share_negative": 0.34958590924997085,
+    "themes.Too hard / stuck.share_of_reviews": 0.057933823243516466,
+    "themes.Bugs & crashes.share_of_reviews": 0.09277188071075858,
+    "themes.Lost progress.share_of_reviews": 0.012597690423422372,
+    "themes.Rewards & boosters.share_of_reviews": 0.14883937944710138,
+    "themes.Prices & pay-to-win.share_of_reviews": 0.1864380419145379,
+    "themes.Ads.share_of_reviews": 0.14732299078502276,
+    "themes.Events & new content.share_of_reviews": 0.08592869085112174,
+    "themes.Friends & teams.share_of_reviews": 0.08099070725922469,
+    "themes.Lives & waiting.share_of_reviews": 0.052801430848788834,
+    "themes.Fun & relaxing.share_of_reviews": 0.4646370387651153,
+    "themes.Too hard / stuck.negative_lift": 4.067535142815635,
+    "themes.Bugs & crashes.negative_lift": 3.319574160844002,
+    "themes.Lost progress.negative_lift": 3.008951934390531,
+    "themes.Rewards & boosters.negative_lift": 2.1497440086310045,
+    "themes.Prices & pay-to-win.negative_lift": 2.134202464876224,
+    "themes.Ads.negative_lift": 1.8046641293003969,
+    "themes.Events & new content.negative_lift": 1.795299051811193,
+    "themes.Friends & teams.negative_lift": 1.653890186482779,
+    "themes.Lives & waiting.negative_lift": 1.2145353048376213,
+    "themes.Fun & relaxing.negative_lift": 0.47020404429276913
+  }
+}

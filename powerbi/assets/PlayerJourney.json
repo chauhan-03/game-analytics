@@ -1,0 +1,15 @@
+{
+  "name": "Player Journey",
+  "dataColors": ["#2A78D6", "#EB6834", "#1BAF7A", "#EDA100", "#E87BA4", "#008300", "#4A3AA7", "#E34948"],
+  "foreground": "#0F1720",
+  "foregroundNeutralSecondary": "#4A5563",
+  "background": "#FFFFFF",
+  "backgroundLight": "#F4F6F8",
+  "tableAccent": "#FF4747",
+  "good": "#0CA30C",
+  "neutral": "#FAB219",
+  "bad": "#D03B3B",
+  "maximum": "#104281",
+  "center": "#86B6EF",
+  "minimum": "#CDE2FB"
+}

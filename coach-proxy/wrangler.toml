@@ -1,0 +1,10 @@
+name = "game-analytics-coach"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Pages allowed to call Coach, comma-separated. Add http://localhost:8000 for local testing.
+ALLOWED_ORIGINS = "https://chauhan-03.github.io"
+
+# The API key is a secret, never a var:  npx wrangler secret put API_KEY

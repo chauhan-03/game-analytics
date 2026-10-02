@@ -1,0 +1,121 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "8dcbc8ca766e622f92ec",
+  "position": {
+    "x": 16,
+    "y": 128,
+    "z": 5000,
+    "width": 820,
+    "height": 576,
+    "tabOrder": 5000
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "daily_activity"
+                    }
+                  },
+                  "Property": "date"
+                }
+              },
+              "queryRef": "daily_activity.date",
+              "nativeQueryRef": "date"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "daily_activity"
+                        }
+                      },
+                      "Property": "dau"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(daily_activity.dau)",
+              "nativeQueryRef": "Sum of dau"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "daily_activity"
+                        }
+                      },
+                      "Property": "wau"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(daily_activity.wau)",
+              "nativeQueryRef": "Sum of wau"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "daily_activity"
+                        }
+                      },
+                      "Property": "mau"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(daily_activity.mau)",
+              "nativeQueryRef": "Sum of mau"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Daily, weekly and monthly active players'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

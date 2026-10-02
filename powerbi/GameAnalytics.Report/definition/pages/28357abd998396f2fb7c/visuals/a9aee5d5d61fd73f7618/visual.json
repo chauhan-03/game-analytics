@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "a9aee5d5d61fd73f7618",
+  "position": {
+    "x": 648,
+    "y": 128,
+    "z": 7000,
+    "width": 616,
+    "height": 576,
+    "tabOrder": 7000
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "cookie_cats_players"
+                    }
+                  },
+                  "Property": "rounds_bucket"
+                }
+              },
+              "queryRef": "cookie_cats_players.rounds_bucket",
+              "nativeQueryRef": "rounds_bucket"
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "cookie_cats_players"
+                    }
+                  },
+                  "Property": "version"
+                }
+              },
+              "queryRef": "cookie_cats_players.version",
+              "nativeQueryRef": "version"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "cookie_cats_players"
+                    }
+                  },
+                  "Property": "CC D7 Retention"
+                }
+              },
+              "queryRef": "cookie_cats_players.CC D7 Retention",
+              "nativeQueryRef": "CC D7 Retention"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Day-7 return by rounds played, gate 30 vs 40'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

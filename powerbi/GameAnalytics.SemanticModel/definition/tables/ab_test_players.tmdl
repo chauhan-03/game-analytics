@@ -1,0 +1,82 @@
+table ab_test_players
+
+	measure 'AB Players' = COUNTROWS ( ab_test_players )
+		formatString: #,0
+
+	measure Payers = CALCULATE ( [AB Players], ab_test_players[is_payer] = TRUE () )
+		formatString: #,0
+
+	measure Conversion = DIVIDE ( [Payers], [AB Players] )
+		formatString: 0.00%
+
+	measure Revenue = SUM ( ab_test_players[revenue (column)] )
+		formatString: #,0
+
+	measure ARPU = DIVIDE ( [Revenue], [AB Players] )
+		formatString: #,0.00
+
+	measure ARPPU = DIVIDE ( [Revenue], [Payers] )
+		formatString: #,0.00
+
+	measure 'Share of Revenue from 10k+ Payers' = DIVIDE ( CALCULATE ( [Revenue], ab_test_players[revenue_tier] = "10,000+" ), [Revenue] )
+		formatString: 0.0%
+
+	measure 'ARPU Lift B vs A' =
+			VAR a = CALCULATE ( [ARPU], ab_test_players[testgroup] = "a" )
+			VAR b = CALCULATE ( [ARPU], ab_test_players[testgroup] = "b" )
+			RETURN DIVIDE ( b - a, a )
+		formatString: +0.0%;-0.0%;0.0%
+
+	measure 'Conversion Lift B vs A' =
+			VAR a = CALCULATE ( [Conversion], ab_test_players[testgroup] = "a" )
+			VAR b = CALCULATE ( [Conversion], ab_test_players[testgroup] = "b" )
+			RETURN DIVIDE ( b - a, a )
+		formatString: +0.0%;-0.0%;0.0%
+
+	column user_id
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: user_id
+
+	column 'revenue (column)'
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: revenue
+
+	column testgroup
+		dataType: string
+		summarizeBy: none
+		sourceColumn: testgroup
+
+	column is_payer
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: is_payer
+
+	column revenue_tier
+		dataType: string
+		summarizeBy: none
+		sourceColumn: revenue_tier
+
+	partition ab_test_players = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        if Text.StartsWith(DataFolder, "http")
+				            then Web.Contents(DataFolder, [RelativePath = "ab_test_players.csv"])
+				            else File.Contents(DataFolder & "ab_test_players.csv"),
+				        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {
+				        {"user_id", Int64.Type},
+				        {"revenue", Int64.Type},
+				        {"testgroup", type text},
+				        {"is_payer", type logical},
+				        {"revenue_tier", type text}
+				    }, "en-US")
+				in
+				    Typed

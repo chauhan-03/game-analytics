@@ -1,0 +1,105 @@
+table new_players
+
+	measure 'Players (30-day window)' = COUNTROWS ( new_players )
+		formatString: #,0
+
+	measure 'D1 Retention' =
+			DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[active_d1] = TRUE () ),
+			         [Players (30-day window)] )
+		formatString: 0.0%
+
+	measure 'D7 Retention' =
+			DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[active_d7] = TRUE () ),
+			         [Players (30-day window)] )
+		formatString: 0.0%
+
+	measure 'D30 Retention' =
+			DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[active_d30] = TRUE () ),
+			         [Players (30-day window)] )
+		formatString: 0.0%
+
+	measure 'Never Returned %' =
+			DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[return_days] = 0 ),
+			         [Players (30-day window)] )
+		formatString: 0.0%
+
+	measure 'Returned Within 7 Days %' =
+			DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[first_return_day] <= 7,
+			                     NOT ISBLANK ( new_players[first_return_day] ) ),
+			         [Players (30-day window)] )
+		formatString: 0.0%
+
+	column uid
+		dataType: int64
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: uid
+
+	column reg_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: reg_date
+
+	column return_days
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: return_days
+
+	column logins
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: logins
+
+	column first_return_day
+		dataType: double
+		formatString: 0
+		summarizeBy: none
+		sourceColumn: first_return_day
+
+	column active_d1
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: active_d1
+
+	column active_d7
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: active_d7
+
+	column active_d30
+		dataType: boolean
+		summarizeBy: none
+		sourceColumn: active_d30
+
+	column segment
+		dataType: string
+		summarizeBy: none
+		sourceColumn: segment
+
+	partition new_players = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        if Text.StartsWith(DataFolder, "http")
+				            then Web.Contents(DataFolder, [RelativePath = "new_players.csv"])
+				            else File.Contents(DataFolder & "new_players.csv"),
+				        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {
+				        {"uid", Int64.Type},
+				        {"reg_date", type date},
+				        {"return_days", Int64.Type},
+				        {"logins", Int64.Type},
+				        {"first_return_day", type number},
+				        {"active_d1", type logical},
+				        {"active_d7", type logical},
+				        {"active_d30", type logical},
+				        {"segment", type text}
+				    }, "en-US")
+				in
+				    Typed

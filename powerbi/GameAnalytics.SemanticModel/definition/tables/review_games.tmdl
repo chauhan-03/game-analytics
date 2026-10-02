@@ -1,0 +1,66 @@
+table review_games
+
+	measure 'Reviews Analyzed' = SUM ( review_games[reviews] )
+		formatString: #,0
+
+	measure 'Avg Review Stars' = DIVIDE ( SUMX ( review_games, review_games[avg_stars] * review_games[reviews] ), [Reviews Analyzed] )
+		formatString: #,0.00
+
+	measure 'Share of 1-2 Star Reviews' = DIVIDE ( SUMX ( review_games, review_games[share_negative] * review_games[reviews] ), [Reviews Analyzed] )
+		formatString: 0.0%
+
+	column game_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: game_name
+
+	column reviews
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: reviews
+
+	column avg_stars
+		dataType: double
+		formatString: #,0.00
+		summarizeBy: sum
+		sourceColumn: avg_stars
+
+	column share_negative
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: share_negative
+
+	column top_pain
+		dataType: string
+		summarizeBy: none
+		sourceColumn: top_pain
+
+	column top_pain_share_of_negative
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: top_pain_share_of_negative
+
+	partition review_games = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        if Text.StartsWith(DataFolder, "http")
+				            then Web.Contents(DataFolder, [RelativePath = "review_games.csv"])
+				            else File.Contents(DataFolder & "review_games.csv"),
+				        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {
+				        {"game_name", type text},
+				        {"reviews", Int64.Type},
+				        {"avg_stars", type number},
+				        {"share_negative", type number},
+				        {"top_pain", type text},
+				        {"top_pain_share_of_negative", type number}
+				    }, "en-US")
+				in
+				    Typed

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "2d276d177284d8308e90",
+  "position": {
+    "x": 648,
+    "y": 128,
+    "z": 6000,
+    "width": 616,
+    "height": 576,
+    "tabOrder": 6000
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "revenue_tier"
+                }
+              },
+              "queryRef": "ab_test_players.revenue_tier",
+              "nativeQueryRef": "revenue_tier"
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "testgroup"
+                }
+              },
+              "queryRef": "ab_test_players.testgroup",
+              "nativeQueryRef": "testgroup"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "Revenue"
+                }
+              },
+              "queryRef": "ab_test_players.Revenue",
+              "nativeQueryRef": "Revenue"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Revenue by payer spend tier'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

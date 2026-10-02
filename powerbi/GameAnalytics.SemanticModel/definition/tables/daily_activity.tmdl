@@ -1,0 +1,86 @@
+table daily_activity
+
+	measure 'Avg DAU' = AVERAGE ( daily_activity[dau] )
+		formatString: #,0
+
+	measure 'Avg MAU' = AVERAGE ( daily_activity[mau] )
+		formatString: #,0
+
+	measure 'Latest MAU' =
+			VAR lastDay = MAX ( daily_activity[date] )
+			RETURN CALCULATE ( SUM ( daily_activity[mau] ), daily_activity[date] = lastDay )
+		formatString: #,0
+
+	measure Stickiness = DIVIDE ( SUM ( daily_activity[dau] ), SUM ( daily_activity[mau] ) )
+		formatString: 0.0%
+
+	measure 'New Players' = SUM ( daily_activity[new_players] )
+		formatString: #,0
+
+	measure 'Returning Share of DAU' = DIVIDE ( SUM ( daily_activity[returning_players] ), SUM ( daily_activity[dau] ) )
+		formatString: 0.0%
+
+	column date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		summarizeBy: none
+		sourceColumn: date
+
+	column dau
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: dau
+
+	column wau
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: wau
+
+	column mau
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: mau
+
+	column new_players
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: new_players
+
+	column returning_players
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: returning_players
+
+	column 'stickiness (column)'
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: stickiness
+
+	partition daily_activity = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        if Text.StartsWith(DataFolder, "http")
+				            then Web.Contents(DataFolder, [RelativePath = "daily_activity.csv"])
+				            else File.Contents(DataFolder & "daily_activity.csv"),
+				        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {
+				        {"date", type date},
+				        {"dau", Int64.Type},
+				        {"wau", Int64.Type},
+				        {"mau", Int64.Type},
+				        {"new_players", Int64.Type},
+				        {"returning_players", Int64.Type},
+				        {"stickiness", type number}
+				    }, "en-US")
+				in
+				    Typed

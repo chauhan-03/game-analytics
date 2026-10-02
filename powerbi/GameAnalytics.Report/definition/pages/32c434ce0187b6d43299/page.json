@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/1.4.0/schema.json",
+  "name": "32c434ce0187b6d43299",
+  "displayName": "Monetization",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280
+}

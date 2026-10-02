@@ -1,0 +1,92 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "8e29946c556f153925c9",
+  "position": {
+    "x": 16,
+    "y": 128,
+    "z": 4000,
+    "width": 700,
+    "height": 576,
+    "tabOrder": 4000
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "review_themes"
+                    }
+                  },
+                  "Property": "theme"
+                }
+              },
+              "queryRef": "review_themes.theme",
+              "nativeQueryRef": "theme"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "review_themes"
+                    }
+                  },
+                  "Property": "Theme Share of Negative Reviews"
+                }
+              },
+              "queryRef": "review_themes.Theme Share of Negative Reviews",
+              "nativeQueryRef": "Theme Share of Negative Reviews"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "review_themes"
+                    }
+                  },
+                  "Property": "Theme Share of Positive Reviews"
+                }
+              },
+              "queryRef": "review_themes.Theme Share of Positive Reviews",
+              "nativeQueryRef": "Theme Share of Positive Reviews"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Themes in 1-2 star vs 4-5 star reviews'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

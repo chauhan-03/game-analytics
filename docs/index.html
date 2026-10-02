@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Game Analytics Dashboard</title>
+<meta name="description" content="How players start, come back, play and spend in a mobile game, explained in plain words, with a what-if power-up lab.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: game-hub console. Hero with a big condensed title, a sticky level menu, then a
+   12-column grid of dark glass panels over a live deep-space scene with coloured nebula glows. One committed
+   dark look; red is the chrome accent only, charts use the validated blue / orange / aqua. */
+:root {
+  color-scheme: dark;
+  --bg: #07070d;
+  --ring: #101019;
+  --surface: rgba(18, 18, 32, 0.6);
+  --surface-2: rgba(30, 30, 52, 0.66);
+  --glass-blur: blur(14px);
+  --ink: #ffffff;
+  --ink-2: #d5d7e3;
+  --muted: #a1a4b8;
+  --grid: rgba(255, 255, 255, 0.09);
+  --axis: rgba(205, 208, 225, 0.32);
+  --border: rgba(255, 255, 255, 0.13);
+  --accent: #ff4747;
+  --accent-soft: rgba(255, 71, 71, 0.14);
+  --series-a: #3987e5;
+  --series-b: #d95926;
+  --series-c: #199e70;
+  --gold: #f5b82e;
+  --wash: rgba(57, 135, 229, 0.16);
+  --good: #2fbf4a;
+  --warn: #f5b82e;
+  --crit: #ff6b6b;
+  --tip-bg: #ffffff;
+  --tip-ink: #0a0b0f;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-ui: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: linear-gradient(160deg, #0d0918 0%, #07070d 50%, #050a12 100%); }
+
+/* ---------- live background: drifting nebula glows + starfield canvas */
+.bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.blob { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(90px); opacity: 0.34; will-change: transform; }
+.b1 { background: radial-gradient(circle, #ff4747 0%, transparent 62%); top: -24vmax; right: -18vmax; animation: drift1 26s ease-in-out infinite alternate; }
+.b2 { background: radial-gradient(circle, #3987e5 0%, transparent 62%); top: -10vmax; left: -22vmax; animation: drift2 32s ease-in-out infinite alternate; }
+.b3 { background: radial-gradient(circle, #199e70 0%, transparent 62%); bottom: -28vmax; left: -10vmax; animation: drift3 38s ease-in-out infinite alternate; }
+.b4 { background: radial-gradient(circle, #8c5aff 0%, transparent 62%); bottom: -22vmax; right: -20vmax; animation: drift4 30s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(-22vmax, 18vmax) scale(1.2); } }
+@keyframes drift2 { to { transform: translate(26vmax, 14vmax) scale(0.85); } }
+@keyframes drift3 { to { transform: translate(30vmax, -20vmax) scale(1.15); } }
+@keyframes drift4 { to { transform: translate(-24vmax, -16vmax) scale(0.9); } }
+#bg-space { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---------- coach (assistant) */
+.fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 30; display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff;
+  background: var(--accent); border: 0; border-radius: 999px; padding: 10px 18px 10px 10px; cursor: pointer;
+  box-shadow: 0 10px 30px rgba(255, 71, 71, 0.45), 0 0 0 4px rgba(255, 71, 71, 0.18); transition: transform 0.15s; }
+.fab:hover { transform: translateY(-2px) scale(1.03); }
+.fab .face { width: 34px; height: 34px; border-radius: 50%; background: #ffffff; display: grid; place-items: center; }
+.fab .face svg { width: 22px; height: 22px; }
+.coach { position: fixed; right: 18px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 30; width: min(380px, calc(100vw - 32px));
+  max-height: min(600px, calc(100vh - 120px)); display: flex; flex-direction: column;
+  background: rgba(14, 14, 26, 0.88); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); overflow: hidden; }
+.coach-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.coach-head .face { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; flex: none; }
+.coach-head .face svg { width: 22px; height: 22px; }
+.coach-head b { font-family: var(--font-display); font-size: 19px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; display: block; line-height: 1; }
+.coach-head small { color: var(--muted); font-size: 12px; }
+.coach-head .x { margin-left: auto; font: inherit; font-size: 20px; line-height: 1; color: var(--ink-2); background: none; border: 0; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.coach-head .x:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.chat { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.msg { max-width: 88%; padding: 9px 12px; border-radius: 12px; font-size: 14.5px; line-height: 1.45; }
+.msg.bot { background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; align-self: flex-start; }
+.msg.me { background: var(--accent); color: #ffffff; border-bottom-right-radius: 4px; align-self: flex-end; }
+.msg .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.msg .acts button { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.msg .acts button:hover { border-color: var(--accent); }
+.msg .acts button.play { background: var(--gold); color: #1a1408; border-color: var(--gold); }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 14px 10px; scrollbar-width: none; }
+.chips button { flex: none; font: inherit; font-size: 13px; color: var(--ink-2); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.chips button:hover { color: var(--ink); border-color: var(--ink-2); }
+.ask { display: flex; gap: 8px; padding: 10px 14px 14px; border-top: 1px solid var(--border); }
+.ask input { flex: 1; min-width: 0; font: inherit; font-size: 14.5px; color: var(--ink); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; }
+.ask input::placeholder { color: var(--muted); }
+.ask button { font-family: var(--font-display); font-weight: 800; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: #ffffff; background: var(--accent); border: 0; border-radius: 999px; padding: 0 16px; cursor: pointer; }
+
+/* ---------- Neon Dash (mini game) */
+.arcade { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgba(3, 3, 8, 0.74); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.cabinet { width: min(400px, 100%); display: grid; gap: 12px; background: rgba(14, 14, 26, 0.94); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
+.cabinet-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.cabinet-head b { font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1; }
+.cabinet-head b span { color: var(--accent); }
+.cabinet canvas { width: 100%; height: auto; aspect-ratio: 360 / 480; max-width: 100%; border-radius: 10px; display: block; background: #0a0a16; touch-action: none; }
+.pad { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pad button { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: #ffffff; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; touch-action: manipulation; }
+.pad button:active { background: var(--accent); }
+.how { font-size: 13px; color: var(--muted); margin: 0; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) { .blob { animation: none; } }
+
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- hero */
+.hero { border-bottom: 1px solid var(--border); }
+.hero .wrap { padding-block: 36px 26px; display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: flex-end; justify-content: space-between; }
+.kicker { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(40px, 7vw, 68px); line-height: 0.92; letter-spacing: 0.01em; text-transform: uppercase; margin: 0; }
+.lede { color: var(--ink-2); font-size: 17px; margin: 12px 0 0; max-width: 52ch; }
+.window { font-family: var(--font-data); font-size: 12px; color: var(--muted); display: grid; gap: 2px; text-align: right; }
+.window b { color: var(--ink); font-weight: 500; }
+
+/* ---------- level menu */
+nav.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: rgba(9, 9, 18, 0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+.tablist { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.tab { font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: none; border: 0; padding: 14px 14px 11px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 8px; align-items: baseline; }
+.tab:hover { color: var(--ink); }
+.tab small { font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab[aria-selected="true"] small { color: var(--accent); }
+
+/* ---------- pages */
+main { padding-block: 24px 48px; }
+.page { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-7 { grid-column: span 7; }
+.span-6 { grid-column: span 6; } .span-5 { grid-column: span 5; } .span-4 { grid-column: span 4; }
+@media (max-width: 900px) { .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; } }
+
+.intro { grid-column: span 12; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+.intro h2 { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em; margin: 0; }
+.intro p { color: var(--ink-2); margin: 6px 0 0; max-width: 60ch; font-size: 16px; }
+
+.panel { background: var(--surface); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.panel-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; justify-content: space-between; }
+.panel h3 { font-family: var(--font-display); font-weight: 700; font-size: 21px; letter-spacing: 0.02em; text-transform: uppercase; margin: 0; text-wrap: balance; line-height: 1.1; }
+.panel .sub { color: var(--ink-2); font-size: 14px; margin: 4px 0 0; max-width: 62ch; }
+.hint { font-size: 12.5px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.hint::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+/* ---------- stat tiles (buttons: click to jump) */
+.kpis { grid-column: span 12; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpi { font: inherit; color: inherit; text-align: left; background: var(--surface); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+button.kpi { cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+button.kpi:hover { border-color: var(--accent); transform: translateY(-2px); }
+.kpi .label { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.kpi .value { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1; letter-spacing: 0.01em; }
+.kpi .note { font-size: 13.5px; color: var(--ink-2); }
+.kpi .go { font-size: 12px; color: var(--accent); font-weight: 600; margin-top: 4px; }
+
+/* ---------- 100 players picture */
+.hundred { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px 32px; align-items: center; }
+.dots { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; max-width: 330px; width: 100%; }
+.dot { aspect-ratio: 1; border-radius: 50%; background: var(--axis); max-width: 100%; }
+.dot.back { background: var(--series-a); }
+.dot.buy { background: var(--gold); box-shadow: 0 0 0 3px rgba(245, 184, 46, 0.25); }
+.dot-key { display: grid; gap: 14px; }
+.dot-key div { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 12px; align-items: start; }
+.dot-key i { width: 16px; height: 16px; border-radius: 50%; margin-top: 4px; }
+.dot-key b { font-family: var(--font-display); font-size: 30px; font-weight: 800; line-height: 1; display: block; }
+.dot-key span { color: var(--ink-2); }
+
+/* ---------- controls */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; background: rgba(0, 0, 0, 0.4); }
+.seg button { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 5px 14px; cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #ffffff; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; font-size: 14px; color: var(--ink-2); }
+select { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+input[type="checkbox"], input[type="range"] { accent-color: var(--accent); }
+label.check { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.legend i.line { height: 3px; border-radius: 2px; width: 16px; }
+
+/* ---------- charts */
+.chart { width: 100%; min-height: 120px; position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); }
+.chart .lbl { fill: var(--ink-2); font-weight: 500; }
+.chart .lbl.sel { fill: var(--ink); font-weight: 600; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .baseline { stroke: var(--axis); stroke-width: 1; }
+.chart .hit { fill: transparent; cursor: crosshair; }
+.chart .bar-hit { fill: transparent; }
+.chart .bar-hit.pick { cursor: pointer; }
+.chart .bar-hit:focus-visible { outline: none; stroke: var(--accent); stroke-width: 2; }
+.chart .band { fill: var(--wash); }
+.chart .bar.on { opacity: 0.8; }
+
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); font-size: 13px; line-height: 1.45; padding: 8px 11px; border-radius: 6px; max-width: 270px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+#tip .t { font-weight: 600; margin-bottom: 2px; }
+#tip .r { display: flex; gap: 10px; align-items: center; justify-content: space-between; font-family: var(--font-data); font-size: 12px; }
+#tip .r i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+
+/* ---------- detail card (what you clicked) */
+.detail { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; }
+.detail .eyebrow { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+.detail h4 { font-family: var(--font-display); font-size: 24px; font-weight: 800; text-transform: uppercase; margin: 0; line-height: 1.05; }
+.detail p { margin: 0; color: var(--ink-2); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 16px; }
+.fact b { display: block; font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1.05; }
+.fact span { font-size: 13px; color: var(--muted); }
+
+details.data summary { cursor: pointer; font-size: 13px; color: var(--muted); width: fit-content; }
+details.data summary:hover { color: var(--ink); }
+.tablewrap { overflow-x: auto; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { font-family: var(--font-display); font-weight: 700; color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+td.num { font-family: var(--font-data); font-size: 12.5px; }
+
+.heat td { font-family: var(--font-data); font-size: 12px; text-align: center; padding: 6px; border-bottom: 2px solid transparent; border-right: 2px solid transparent; background-clip: padding-box; }
+.heat td:first-child { text-align: left; color: var(--ink-2); font-family: var(--font-ui); font-size: 13.5px; }
+.heat tbody tr { cursor: pointer; }
+.heat tbody tr:hover td:first-child, .heat tr.sel td:first-child { color: var(--ink); }
+.heat tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); padding-left: 10px; font-weight: 600; }
+.heat tr.avg { cursor: default; }
+.heat tr.avg td { font-weight: 600; border-top: 1px solid var(--axis); }
+.heat td.empty { color: var(--muted); }
+
+/* ---------- chips & lists */
+.chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 2px 10px 2px 8px; border: 1px solid currentColor; white-space: nowrap; }
+.chip::before { font-family: var(--font-data); font-size: 11px; }
+.chip.crit { color: var(--crit); } .chip.crit::before { content: "!"; }
+.chip.watch { color: var(--warn); } .chip.watch::before { content: "~"; }
+.chip.good { color: var(--good); } .chip.good::before { content: "\2713"; }
+.chip.sig { color: var(--series-a); } .chip.sig::before { content: "\2713"; }
+.chip.ns { color: var(--muted); } .chip.ns::before { content: "?"; }
+
+.learned { list-style: none; margin: 0; padding: 0; display: grid; }
+.learned li { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--grid); }
+.learned li:last-child { border-bottom: 0; }
+.learned .stripe { align-self: stretch; border-radius: 2px; background: var(--muted); }
+.learned li.crit .stripe { background: var(--crit); } .learned li.good .stripe { background: var(--good); } .learned li.watch .stripe { background: var(--warn); }
+.learned .what { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.learned .what b { font-weight: 600; font-size: 16px; }
+.learned .what span { color: var(--ink-2); font-size: 14px; }
+.learned .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.linkbtn { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; }
+.linkbtn:hover { color: var(--ink); }
+
+.tests { display: grid; }
+.test { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 150px; gap: 4px 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--grid); }
+.test:last-child { border-bottom: 0; }
+.test .name { font-weight: 600; }
+.test .name small { display: block; color: var(--muted); font-weight: 400; font-size: 13px; }
+.test .est { font-size: 14px; }
+.test .est small { display: block; color: var(--muted); font-size: 12px; font-family: var(--font-data); }
+.test .chip { justify-self: end; }
+@media (max-width: 560px) { .test { grid-template-columns: minmax(0, 1fr) auto; } .test .est { grid-column: 1; } }
+
+/* ---------- power-up lab */
+.planner { grid-column: span 12; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; }
+@media (max-width: 900px) { .planner { grid-template-columns: minmax(0, 1fr); } }
+.lever { display: grid; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--grid); }
+.lever:last-of-type { border-bottom: 0; }
+.lever-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.lever label { font-weight: 600; font-size: 15.5px; }
+.lever output { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.lever .why { font-size: 13px; color: var(--muted); }
+input[type="range"] { width: 100%; }
+.outcomes { display: grid; }
+.outcome { display: grid; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--grid); }
+.outcome:last-child { border-bottom: 0; }
+.outcome-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.outcome .label { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.outcome .big { font-family: var(--font-display); font-size: 40px; font-weight: 800; line-height: 1; }
+.delta { font-family: var(--font-display); font-size: 18px; font-weight: 800; letter-spacing: 0.02em; }
+.delta.up { color: var(--good); } .delta.down { color: var(--crit); } .delta.flat { color: var(--muted); }
+.meter { display: grid; gap: 5px; }
+.meter div { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 12px; color: var(--muted); font-family: var(--font-data); }
+.meter .track { display: block; height: 12px; border-radius: 0 4px 4px 0; background: var(--grid); position: relative; overflow: hidden; }
+.meter .fill { position: absolute; inset: 0 auto 0 0; border-radius: 0 4px 4px 0; transition: width 0.25s ease; }
+.assumptions { font-size: 13.5px; color: var(--ink-2); margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.btn { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); background: var(--surface-2); border: 1px solid var(--axis); border-radius: 999px; padding: 7px 16px; cursor: pointer; }
+.btn:hover { border-color: var(--ink-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+.btn.primary:hover { filter: brightness(1.1); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.status { font-size: 13px; color: var(--muted); }
+textarea.copyfall { width: 100%; font-family: var(--font-data); font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+
+footer { border-top: 1px solid var(--border); padding-block: 20px 36px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+footer a { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span><canvas id="bg-space"></canvas></div>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <p class="kicker">Game Analytics Project</p>
+      <h1>Player<br>Journey</h1>
+      <p class="lede">What happens after someone downloads a mobile game? Do they come back, keep playing, and buy things? Here is what 1.4 million players did.</p>
+    </div>
+    <div class="window" id="window"></div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Levels">
+  <div class="wrap tablist" role="tablist">
+    <button class="tab" role="tab" id="tab-home" data-tab="home">Home</button>
+    <button class="tab" role="tab" id="tab-start" data-tab="start"><small>Lvl 1</small>Starting</button>
+    <button class="tab" role="tab" id="tab-back" data-tab="back"><small>Lvl 2</small>Coming back</button>
+    <button class="tab" role="tab" id="tab-play" data-tab="play"><small>Lvl 3</small>Playing</button>
+    <button class="tab" role="tab" id="tab-spend" data-tab="spend"><small>Lvl 4</small>Spending</button>
+    <button class="tab" role="tab" id="tab-lab" data-tab="lab"><small>Bonus</small>Power-up lab</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ===================================================== Home -->
+  <section class="page" id="p-home" role="tabpanel" aria-labelledby="tab-home">
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>If 100 new players joined today</h3><p class="sub">Each dot is one player. This is what usually happens to them.</p></div></div>
+      <div class="hundred">
+        <div class="dots" id="dots" role="img"></div>
+        <div class="dot-key" id="dot-key"></div>
+      </div>
+    </div>
+    <div class="kpis" id="home-kpis"></div>
+    <div class="panel span-7">
+      <div class="panel-head"><div><h3>4 things we learned</h3><p class="sub">Biggest problem first</p></div></div>
+      <ul class="learned" id="learned"></ul>
+    </div>
+    <div class="panel span-5">
+      <div class="panel-head"><div><h3>Players each day in 2020</h3><p class="sub">The game keeps growing, a little more every day</p></div></div>
+      <div class="legend" id="home-legend"></div>
+      <div class="chart" id="home-dau"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Level 1: Starting -->
+  <section class="page" id="p-start" role="tabpanel" aria-labelledby="tab-start" hidden>
+    <div class="intro"><div><h2>Level 1: Starting</h2><p>Someone downloads the game and plays for the first time. Do they come back for more?</p></div></div>
+    <div class="kpis" id="start-kpis"></div>
+    <div class="panel span-6">
+      <div class="panel-head"><div><h3>When do players come back?</h3><p class="sub" id="start-return-sub"></p></div></div>
+      <div class="chart" id="start-return"></div>
+      <details class="data"><summary>Show the numbers</summary><div class="tablewrap" id="start-return-table"></div></details>
+    </div>
+    <div class="panel span-6">
+      <div class="panel-head">
+        <div><h3>Play more at the start, come back more</h3><p class="sub">Cookie Cats players, grouped by how many rounds they played in their first 2 weeks</p></div>
+        <div class="seg" role="group" aria-label="When"><button id="start-d1" data-v="d1_retention">Next day</button><button id="start-d7" data-v="d7_retention" aria-pressed="true">A week later</button></div>
+      </div>
+      <div class="legend" id="start-rounds-legend"></div>
+      <div class="chart" id="start-rounds"></div>
+      <span class="hint">Click a group of bars to see its details</span>
+      <div class="detail" id="start-detail"></div>
+    </div>
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>Experiment: where should the first gate go?</h3>
+        <p class="sub">In Cookie Cats, players reach a gate where they have to wait or ask friends before playing on. Half of 90,189 players got the gate at level 30. The other half got it at level 40.</p></div></div>
+      <div class="tests" id="start-gate"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Level 2: Coming back -->
+  <section class="page" id="p-back" role="tabpanel" aria-labelledby="tab-back" hidden>
+    <div class="intro"><div><h2>Level 2: Coming back</h2><p>Out of every 100 players who start, how many open the game again on day 1, day 7, day 30?</p></div></div>
+    <div class="kpis" id="back-kpis"></div>
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>Players who show up, day by day</h3><p class="sub">Out of everyone who started in 2020: how many played on exactly that day after starting</p></div></div>
+      <div class="chart" id="back-curve"></div>
+      <details class="data"><summary>Show the numbers</summary><div class="tablewrap" id="back-curve-table"></div></details>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head">
+        <div><h3>Players who started in the same week</h3><p class="sub">Darker blue means more players came back. Empty cells: that week's players have not reached that day yet.</p></div>
+        <div class="controls"><label for="back-from">From</label><select id="back-from"></select><label for="back-to">to</label><select id="back-to"></select></div>
+      </div>
+      <span class="hint">Click a week to compare it with the rest</span>
+      <div class="tablewrap"><table class="heat" id="back-heat"></table></div>
+    </div>
+    <div class="panel span-5">
+      <div class="detail" id="back-detail"></div>
+      <div class="legend" id="back-week-legend"></div>
+      <div class="chart" id="back-week"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Level 3: Playing -->
+  <section class="page" id="p-play" role="tabpanel" aria-labelledby="tab-play" hidden>
+    <div class="intro">
+      <div><h2>Level 3: Playing</h2><p>How many people play every day, and who are the players that play the most?</p></div>
+      <div class="seg" role="group" aria-label="Time">
+        <button id="play-all" data-days="0" aria-pressed="true">All of 2020</button>
+        <button id="play-90" data-days="90">Last 90 days</button>
+        <button id="play-30" data-days="30">Last 30 days</button>
+      </div>
+    </div>
+    <div class="kpis" id="play-kpis"></div>
+    <div class="panel span-8">
+      <div class="panel-head"><div><h3>How many people play</h3><p class="sub">Different players who played that day, that week, and that month</p></div></div>
+      <div class="legend" id="play-legend"></div>
+      <div class="chart" id="play-active"></div>
+    </div>
+    <div class="panel span-4">
+      <div class="panel-head"><div><h3>How loyal are they?</h3><p class="sub">Out of this month's players, how many play on a normal day</p></div></div>
+      <div class="chart" id="play-sticky"></div>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head"><div><h3>4 kinds of new players</h3><p class="sub">Grouped by how many days they came back in their first month</p></div></div>
+      <div class="legend" id="play-seg-legend"></div>
+      <div class="chart" id="play-seg"></div>
+      <span class="hint">Click a kind of player to meet them</span>
+    </div>
+    <div class="panel span-5"><div class="detail" id="play-detail"></div></div>
+  </section>
+
+  <!-- ===================================================== Level 4: Spending -->
+  <section class="page" id="p-spend" role="tabpanel" aria-labelledby="tab-spend" hidden>
+    <div class="intro">
+      <div><h2>Level 4: Spending</h2><p>Experiment: half of 404,770 players saw the old shop (shop A). The other half saw a new shop (shop B). Which one made more money?</p></div>
+      <label class="check" for="spend-whales"><input type="checkbox" id="spend-whales" checked> Count the 123 huge spenders</label>
+    </div>
+    <div class="panel span-5">
+      <div class="panel-head"><div><h3>Shop A vs shop B</h3><p class="sub" id="spend-whale-note"></p></div></div>
+      <div class="tablewrap" id="spend-table"></div>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head"><div><h3>Did shop B win?</h3><p class="sub">"Real difference" means it is very unlikely to be luck. "Could be luck" means we can't tell yet.</p></div></div>
+      <div class="tests" id="spend-tests"></div>
+    </div>
+    <div class="panel span-7">
+      <div class="panel-head">
+        <div><h3>Who brings in the money</h3><p class="sub">Buyers grouped by how much they spent</p></div>
+        <div class="seg" role="group" aria-label="Show"><button id="spend-rev" data-v="revenue" aria-pressed="true">Money</button><button id="spend-pay" data-v="players">Buyers</button></div>
+      </div>
+      <div class="legend" id="spend-tier-legend"></div>
+      <div class="chart" id="spend-tiers"></div>
+      <span class="hint">Click a spending group to see its details</span>
+    </div>
+    <div class="panel span-5"><div class="detail" id="spend-detail"></div></div>
+    <div class="panel span-12">
+      <div class="panel-head"><div><h3>How much each buyer spent</h3><p class="sub">Each bar counts buyers in a price range. The ranges grow 10 times bigger at each label.</p></div></div>
+      <div class="legend" id="spend-hist-legend"></div>
+      <div class="chart" id="spend-hist"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================== Power-up lab -->
+  <section class="page" id="p-lab" role="tabpanel" aria-labelledby="tab-lab" hidden>
+    <div class="intro"><div><h2>Power-up lab</h2><p>What if we made the game better? Slide the power-ups and see what one year of new players would look like.</p></div></div>
+    <div class="planner">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Power-ups</h3></div><button class="btn" id="lab-reset" type="button">Reset</button></div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-return">More players come back in week one</label><output id="lab-return-out" for="lab-return"></output></div>
+          <input type="range" id="lab-return" min="0" max="10" step="0.5" value="0">
+          <span class="why">How: a better first game, and a gift waiting for them the next day.</span>
+        </div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-offer">Which shop</label><output id="lab-offer-out" for="lab-offer"></output></div>
+          <select id="lab-offer">
+            <option value="a">Shop A (the old one)</option>
+            <option value="b">Shop B (the new one)</option>
+            <option value="a_core">Shop A without its 123 huge spenders</option>
+          </select>
+          <span class="why">The experiment on Level 4 tested these.</span>
+        </div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-conv">More returning players buy something</label><output id="lab-conv-out" for="lab-conv"></output></div>
+          <input type="range" id="lab-conv" min="-20" max="50" step="5" value="0">
+          <span class="why">How: a great deal in the shop, shown at the right moment.</span>
+        </div>
+        <div class="lever">
+          <div class="lever-top"><label for="lab-spend">Buyers spend more</label><output id="lab-spend-out" for="lab-spend"></output></div>
+          <input type="range" id="lab-spend" min="-20" max="50" step="5" value="0">
+          <span class="why">How: players who stay longer find more things they want.</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>One year of new players</h3><p class="sub" id="lab-volume"></p></div></div>
+        <div class="outcomes" id="lab-outcomes"></div>
+        <details class="data"><summary>How we worked this out</summary><ul class="assumptions" id="lab-assumptions"></ul></details>
+        <div class="btn-row"><button class="btn primary" id="lab-copy" type="button">Copy my plan</button><span class="status" id="lab-status" role="status"></span></div>
+        <textarea class="copyfall" id="lab-copytext" rows="6" readonly hidden></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="wrap">
+  <footer>
+    <span>Made by Jatin Chauhan. Data: <a href="https://www.kaggle.com/datasets/debs2x/gamelytics-mobile-analytics-challenge" target="_blank" rel="noopener">Gamelytics</a> and <a href="https://www.kaggle.com/datasets/mursideyarkin/mobile-games-ab-testing-cookie-cats" target="_blank" rel="noopener">Cookie Cats</a> on Kaggle. The Gamelytics data looks computer-made, so treat its numbers as practice data.</span>
+    <a href="https://github.com/chauhan-03/game-analytics" target="_blank" rel="noopener">How it was made, on GitHub</a>
+  </footer>
+</div>
+
+<button class="fab" id="coach-open" type="button" aria-expanded="false" aria-controls="coach">
+  <span class="face"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="4" fill="#ff4747"/><circle cx="9.5" cy="13" r="1.8" fill="#ffffff"/><circle cx="14.5" cy="13" r="1.8" fill="#ffffff"/><rect x="11" y="3" width="2" height="4" rx="1" fill="#ff4747"/></svg></span>
+  Ask Coach
+</button>
+<section class="coach" id="coach" aria-label="Coach, the dashboard helper" hidden>
+  <div class="coach-head">
+    <span class="face"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="4" fill="#ffffff"/><circle cx="9.5" cy="13" r="1.8" fill="#ff4747"/><circle cx="14.5" cy="13" r="1.8" fill="#ff4747"/><rect x="11" y="3" width="2" height="4" rx="1" fill="#ffffff"/></svg></span>
+    <div><b>Coach</b><small id="coach-mode">Answers from this page's numbers</small></div>
+    <button class="x" id="coach-close" type="button" aria-label="Close Coach">&times;</button>
+  </div>
+  <div class="chat" id="chat" aria-live="polite"></div>
+  <div class="chips" id="chips"></div>
+  <form class="ask" id="ask">
+    <input id="ask-input" type="text" autocomplete="off" placeholder="Ask about players, shops, levels...">
+    <button type="submit">Ask</button>
+  </form>
+</section>
+
+<div class="arcade" id="arcade" role="dialog" aria-modal="true" aria-label="Neon Dash" hidden>
+  <div class="cabinet">
+    <div class="cabinet-head"><b>Neon <span>Dash</span></b><button class="btn" id="arcade-close" type="button">Back to data</button></div>
+    <canvas id="game" width="360" height="480"></canvas>
+    <div class="pad"><button id="go-left" type="button" aria-label="Move left">&#9664;</button><button id="go-right" type="button" aria-label="Move right">&#9654;</button></div>
+    <p class="how">Dodge the traffic. Arrow keys, A/D, or tap the left and right side. Space to race again.</p>
+  </div>
+</div>
+
+<div id="tip" hidden></div>
+
+<script>
+const DATA = {"findings": {"window": {"cohort_start": "2020-01-01", "last_full_day": "2020-09-22", "new_players": 353915, "players_with_30_days": 305832}, "retention": {"d1": 0.020149088493615765, "d3": 0.046269340974212037, "d7": 0.058134272358044047, "d14": 0.045745377905133444, "d30": 0.028509116116037563, "peak_day": 6, "peak_retention": 0.06915270787078476, "best_cohort_d7": 0.0630398823745635, "worst_cohort_d7": 0.0517503805175038}, "onboarding": {"players": 305832, "never_returned_30d": 0.7604436422611107, "returned_within_7d": 0.23955635773888934, "returners_back_on_d1": 0.08384745577637039, "median_first_return_day": 4.0, "first_return_on_d1_share_of_all": 0.020086191111459886, "cookie_cats_never_played": 0.0442847797403231, "cookie_cats_under_10_rounds": 0.37961392187517323, "gate_test": {"d1": {"rate_a": 0.4481879194630872, "rate_b": 0.44228274967574577, "diff": -0.005905169787341458, "ci_low": -0.012392558656738065, "ci_high": 0.0005822190820551484, "z": -1.7840862247974725, "p_value": 0.07440965529691913}, "d7": {"rate_a": 0.19020134228187918, "rate_b": 0.18200004396667327, "diff": -0.008201298315205913, "ci_low": -0.01328164577146224, "ci_high": -0.003120950858949586, "z": -3.164358912748191, "p_value": 0.001554249975614329}}, "gate_30_reached_30_rounds": 0.37261744966442956}, "engagement": {"dau_jan_avg": 10453.09677419355, "dau_last30_avg": 15461.166666666666, "mau_last_day": 102241, "stickiness_last30_avg": 0.15490143023661185, "returning_share_of_dau_last30": 0.8963359815451616, "segments": {"One-and-done": {"share_of_players": 0.7604436422611107, "share_of_logins": 0.33211237395915}, "Tried it": {"share_of_players": 0.056733762327029216, "share_of_logins": 0.07425003819960616}, "Regular": {"share_of_players": 0.14165947317481492, "share_of_logins": 0.4247067912473635}, "Core": {"share_of_players": 0.04116312223704518, "share_of_logins": 0.16893079659388036}}}, "monetization": {"players_a": 202103.0, "payers_a": 1928.0, "conversion_a": 0.009539690157988749, "revenue_a": 5136189.0, "arpu_a": 25.413719736965806, "arppu_a": 2663.9984439834025, "median_payer_revenue_a": 311.0, "top_1pct_payer_revenue_share_a": 0.1382295316624836, "players_b": 202667.0, "payers_b": 1805.0, "conversion_b": 0.008906235351586593, "revenue_b": 5421603.0, "arpu_b": 26.75128659327863, "arppu_b": 3003.6581717451522, "median_payer_revenue_b": 3022.0, "top_1pct_payer_revenue_share_b": 0.013252906935458018, "tests": {"conversion": {"rate_a": 0.009539690157988749, "rate_b": 0.008906235351586593, "diff": -0.0006334548064021554, "ci_low": -0.0012224522825066756, "ci_high": -4.4457330297635296e-05, "z": -2.108028495889841, "p_value": 0.035028524642854865}, "arpu": {"diff": 1.3375668563128222, "ci_low": -2.8597924192196986, "ci_high": 5.505631227651213, "p_value": 0.5068}, "arppu": {"diff": 339.65972776174976, "ci_low": -60.26844680664581, "ci_high": 745.5208347246006, "p_value": 0.098}, "arpu_without_10k_payers": {"diff": 24.048360560998205, "ci_low": 22.80779642926375, "ci_high": 25.321541705569274, "p_value": 0.0}, "group_a_10k_payers": 123, "group_a_10k_revenue_share": 0.8937077665950377}}, "player_voice": {"reviews": 25719, "games": 9, "avg_stars": 3.2428165947354097, "share_negative": 0.34958590924997085, "themes.Too hard / stuck.share_of_reviews": 0.057933823243516466, "themes.Bugs & crashes.share_of_reviews": 0.09277188071075858, "themes.Lost progress.share_of_reviews": 0.012597690423422372, "themes.Rewards & boosters.share_of_reviews": 0.14883937944710138, "themes.Prices & pay-to-win.share_of_reviews": 0.1864380419145379, "themes.Ads.share_of_reviews": 0.14732299078502276, "themes.Events & new content.share_of_reviews": 0.08592869085112174, "themes.Friends & teams.share_of_reviews": 0.08099070725922469, "themes.Lives & waiting.share_of_reviews": 0.052801430848788834, "themes.Fun & relaxing.share_of_reviews": 0.4646370387651153, "themes.Too hard / stuck.negative_lift": 4.067535142815635, "themes.Bugs & crashes.negative_lift": 3.319574160844002, "themes.Lost progress.negative_lift": 3.008951934390531, "themes.Rewards & boosters.negative_lift": 2.1497440086310045, "themes.Prices & pay-to-win.negative_lift": 2.134202464876224, "themes.Ads.negative_lift": 1.8046641293003969, "themes.Events & new content.negative_lift": 1.795299051811193, "themes.Friends & teams.negative_lift": 1.653890186482779, "themes.Lives & waiting.negative_lift": 1.2145353048376213, "themes.Fun & relaxing.negative_lift": 0.47020404429276913}}, "window_days": 266, "daily": [{"date": "2020-01-01", "dau": 10120, "wau": 43698, "mau": 66125, "new_players": 1061, "returning_players": 9059}, {"date": "2020-01-02", "dau": 10261, "wau": 43747, "mau": 66217, "new_players": 1063, "returning_players": 9198}, {"date": "2020-01-03", "dau": 10285, "wau": 43840, "mau": 66284, "new_players": 1065, "returning_players": 9220}, {"date": "2020-01-04", "dau": 10196, "wau": 43909, "mau": 66372, "new_players": 1067, "returning_players": 9129}, {"date": "2020-01-05", "dau": 10245, "wau": 43985, "mau": 66508, "new_players": 1069, "returning_players": 9176}, {"date": "2020-01-06", "dau": 10254, "wau": 44088, "mau": 66609, "new_players": 1070, "returning_players": 9184}, {"date": "2020-01-07", "dau": 10358, "wau": 44150, "mau": 66746, "new_players": 1072, "returning_players": 9286}, {"date": "2020-01-08", "dau": 10305, "wau": 44246, "mau": 66886, "new_players": 1074, "returning_players": 9231}, {"date": "2020-01-09", "dau": 10299, "wau": 44293, "mau": 66998, "new_players": 1076, "returning_players": 9223}, {"date": "2020-01-10", "dau": 10352, "wau": 44346, "mau": 67110, "new_players": 1077, "returning_players": 9275}, {"date": "2020-01-11", "dau": 10266, "wau": 44425, "mau": 67208, "new_players": 1079, "returning_players": 9187}, {"date": "2020-01-12", "dau": 10416, "wau": 44478, "mau": 67283, "new_players": 1081, "returning_players": 9335}, {"date": "2020-01-13", "dau": 10362, "wau": 44537, "mau": 67399, "new_players": 1083, "returning_players": 9279}, {"date": "2020-01-14", "dau": 10506, "wau": 44638, "mau": 67522, "new_players": 1084, "returning_players": 9422}, {"date": "2020-01-15", "dau": 10563, "wau": 44719, "mau": 67632, "new_players": 1086, "returning_players": 9477}, {"date": "2020-01-16", "dau": 10423, "wau": 44752, "mau": 67784, "new_players": 1089, "returning_players": 9334}, {"date": "2020-01-17", "dau": 10467, "wau": 44830, "mau": 67910, "new_players": 1089, "returning_players": 9378}, {"date": "2020-01-18", "dau": 10461, "wau": 44899, "mau": 67989, "new_players": 1092, "returning_players": 9369}, {"date": "2020-01-19", "dau": 10549, "wau": 44969, "mau": 68066, "new_players": 1093, "returning_players": 9456}, {"date": "2020-01-20", "dau": 10471, "wau": 45057, "mau": 68191, "new_players": 1096, "returning_players": 9375}, {"date": "2020-01-21", "dau": 10578, "wau": 45155, "mau": 68306, "new_players": 1097, "returning_players": 9481}, {"date": "2020-01-22", "dau": 10640, "wau": 45235, "mau": 68432, "new_players": 1099, "returning_players": 9541}, {"date": "2020-01-23", "dau": 10469, "wau": 45332, "mau": 68518, "new_players": 1100, "returning_players": 9369}, {"date": "2020-01-24", "dau": 10488, "wau": 45371, "mau": 68602, "new_players": 1103, "returning_players": 9385}, {"date": "2020-01-25", "dau": 10789, "wau": 45466, "mau": 68692, "new_players": 1104, "returning_players": 9685}, {"date": "2020-01-26", "dau": 10504, "wau": 45527, "mau": 68826, "new_players": 1106, "returning_players": 9398}, {"date": "2020-01-27", "dau": 10526, "wau": 45620, "mau": 68936, "new_players": 1108, "returning_players": 9418}, {"date": "2020-01-28", "dau": 10754, "wau": 45681, "mau": 69053, "new_players": 1110, "returning_players": 9644}, {"date": "2020-01-29", "dau": 10737, "wau": 45731, "mau": 69197, "new_players": 1111, "returning_players": 9626}, {"date": "2020-01-30", "dau": 10635, "wau": 45799, "mau": 69301, "new_players": 1114, "returning_players": 9521}, {"date": "2020-01-31", "dau": 10767, "wau": 45860, "mau": 69438, "new_players": 1115, "returning_players": 9652}, {"date": "2020-02-01", "dau": 10734, "wau": 45905, "mau": 69526, "new_players": 1117, "returning_players": 9617}, {"date": "2020-02-02", "dau": 10626, "wau": 45973, "mau": 69621, "new_players": 1119, "returning_players": 9507}, {"date": "2020-02-03", "dau": 10810, "wau": 46030, "mau": 69742, "new_players": 1121, "returning_players": 9689}, {"date": "2020-02-04", "dau": 10773, "wau": 46102, "mau": 69836, "new_players": 1122, "returning_players": 9651}, {"date": "2020-02-05", "dau": 10869, "wau": 46185, "mau": 69937, "new_players": 1125, "returning_players": 9744}, {"date": "2020-02-06", "dau": 10819, "wau": 46270, "mau": 70080, "new_players": 1126, "returning_players": 9693}, {"date": "2020-02-07", "dau": 10936, "wau": 46328, "mau": 70203, "new_players": 1128, "returning_players": 9808}, {"date": "2020-02-08", "dau": 10667, "wau": 46380, "mau": 70277, "new_players": 1130, "returning_players": 9537}, {"date": "2020-02-09", "dau": 10767, "wau": 46474, "mau": 70398, "new_players": 1132, "returning_players": 9635}, {"date": "2020-02-10", "dau": 10747, "wau": 46553, "mau": 70509, "new_players": 1134, "returning_players": 9613}, {"date": "2020-02-11", "dau": 11013, "wau": 46637, "mau": 70621, "new_players": 1135, "returning_players": 9878}, {"date": "2020-02-12", "dau": 10992, "wau": 46729, "mau": 70751, "new_players": 1138, "returning_players": 9854}, {"date": "2020-02-13", "dau": 10917, "wau": 46818, "mau": 70891, "new_players": 1139, "returning_players": 9778}, {"date": "2020-02-14", "dau": 10933, "wau": 46892, "mau": 71013, "new_players": 1141, "returning_players": 9792}, {"date": "2020-02-15", "dau": 10988, "wau": 46910, "mau": 71153, "new_players": 1143, "returning_players": 9845}, {"date": "2020-02-16", "dau": 11006, "wau": 46988, "mau": 71234, "new_players": 1145, "returning_players": 9861}, {"date": "2020-02-17", "dau": 11178, "wau": 47074, "mau": 71372, "new_players": 1147, "returning_players": 10031}, {"date": "2020-02-18", "dau": 10928, "wau": 47162, "mau": 71476, "new_players": 1149, "returning_players": 9779}, {"date": "2020-02-19", "dau": 10903, "wau": 47224, "mau": 71611, "new_players": 1150, "returning_players": 9753}, {"date": "2020-02-20", "dau": 11090, "wau": 47297, "mau": 71715, "new_players": 1153, "returning_players": 9937}, {"date": "2020-02-21", "dau": 11086, "wau": 47376, "mau": 71808, "new_players": 1154, "returning_players": 9932}, {"date": "2020-02-22", "dau": 11073, "wau": 47445, "mau": 71919, "new_players": 1157, "returning_players": 9916}, {"date": "2020-02-23", "dau": 10950, "wau": 47539, "mau": 72023, "new_players": 1158, "returning_players": 9792}, {"date": "2020-02-24", "dau": 11172, "wau": 47635, "mau": 72111, "new_players": 1160, "returning_players": 10012}, {"date": "2020-02-25", "dau": 11069, "wau": 47725, "mau": 72222, "new_players": 1162, "returning_players": 9907}, {"date": "2020-02-26", "dau": 11275, "wau": 47737, "mau": 72322, "new_players": 1164, "returning_players": 10111}, {"date": "2020-02-27", "dau": 11212, "wau": 47835, "mau": 72438, "new_players": 1166, "returning_players": 10046}, {"date": "2020-02-28", "dau": 11177, "wau": 47915, "mau": 72564, "new_players": 1168, "returning_players": 10009}, {"date": "2020-02-29", "dau": 11331, "wau": 48005, "mau": 72692, "new_players": 1169, "returning_players": 10162}, {"date": "2020-03-01", "dau": 11131, "wau": 48085, "mau": 72794, "new_players": 1172, "returning_players": 9959}, {"date": "2020-03-02", "dau": 11321, "wau": 48195, "mau": 72889, "new_players": 1173, "returning_players": 10148}, {"date": "2020-03-03", "dau": 11313, "wau": 48289, "mau": 73027, "new_players": 1176, "returning_players": 10137}, {"date": "2020-03-04", "dau": 11228, "wau": 48367, "mau": 73149, "new_players": 1177, "returning_players": 10051}, {"date": "2020-03-05", "dau": 11365, "wau": 48455, "mau": 73278, "new_players": 1180, "returning_players": 10185}, {"date": "2020-03-06", "dau": 11398, "wau": 48560, "mau": 73413, "new_players": 1181, "returning_players": 10217}, {"date": "2020-03-07", "dau": 11424, "wau": 48647, "mau": 73546, "new_players": 1183, "returning_players": 10241}, {"date": "2020-03-08", "dau": 11299, "wau": 48694, "mau": 73664, "new_players": 1185, "returning_players": 10114}, {"date": "2020-03-09", "dau": 11301, "wau": 48754, "mau": 73726, "new_players": 1187, "returning_players": 10114}, {"date": "2020-03-10", "dau": 11453, "wau": 48821, "mau": 73849, "new_players": 1190, "returning_players": 10263}, {"date": "2020-03-11", "dau": 11561, "wau": 48928, "mau": 73979, "new_players": 1191, "returning_players": 10370}, {"date": "2020-03-12", "dau": 11521, "wau": 49003, "mau": 74111, "new_players": 1193, "returning_players": 10328}, {"date": "2020-03-13", "dau": 11564, "wau": 49096, "mau": 74218, "new_players": 1195, "returning_players": 10369}, {"date": "2020-03-14", "dau": 11359, "wau": 49160, "mau": 74335, "new_players": 1197, "returning_players": 10162}, {"date": "2020-03-15", "dau": 11410, "wau": 49253, "mau": 74458, "new_players": 1198, "returning_players": 10212}, {"date": "2020-03-16", "dau": 11516, "wau": 49344, "mau": 74571, "new_players": 1201, "returning_players": 10315}, {"date": "2020-03-17", "dau": 11496, "wau": 49399, "mau": 74710, "new_players": 1203, "returning_players": 10293}, {"date": "2020-03-18", "dau": 11651, "wau": 49520, "mau": 74851, "new_players": 1205, "returning_players": 10446}, {"date": "2020-03-19", "dau": 11663, "wau": 49578, "mau": 74986, "new_players": 1207, "returning_players": 10456}, {"date": "2020-03-20", "dau": 11606, "wau": 49672, "mau": 75043, "new_players": 1209, "returning_players": 10397}, {"date": "2020-03-21", "dau": 11587, "wau": 49781, "mau": 75185, "new_players": 1210, "returning_players": 10377}, {"date": "2020-03-22", "dau": 11747, "wau": 49872, "mau": 75310, "new_players": 1213, "returning_players": 10534}, {"date": "2020-03-23", "dau": 11650, "wau": 49976, "mau": 75446, "new_players": 1215, "returning_players": 10435}, {"date": "2020-03-24", "dau": 11811, "wau": 50080, "mau": 75571, "new_players": 1217, "returning_players": 10594}, {"date": "2020-03-25", "dau": 11801, "wau": 50214, "mau": 75727, "new_players": 1219, "returning_players": 10582}, {"date": "2020-03-26", "dau": 11796, "wau": 50290, "mau": 75865, "new_players": 1220, "returning_players": 10576}, {"date": "2020-03-27", "dau": 11672, "wau": 50391, "mau": 75989, "new_players": 1223, "returning_players": 10449}, {"date": "2020-03-28", "dau": 11959, "wau": 50518, "mau": 76122, "new_players": 1225, "returning_players": 10734}, {"date": "2020-03-29", "dau": 11777, "wau": 50604, "mau": 76273, "new_players": 1227, "returning_players": 10550}, {"date": "2020-03-30", "dau": 11753, "wau": 50675, "mau": 76406, "new_players": 1229, "returning_players": 10524}, {"date": "2020-03-31", "dau": 11940, "wau": 50747, "mau": 76498, "new_players": 1230, "returning_players": 10710}, {"date": "2020-04-01", "dau": 11904, "wau": 50805, "mau": 76604, "new_players": 1233, "returning_players": 10671}, {"date": "2020-04-02", "dau": 11936, "wau": 50899, "mau": 76716, "new_players": 1235, "returning_players": 10701}, {"date": "2020-04-03", "dau": 11880, "wau": 50992, "mau": 76869, "new_players": 1237, "returning_players": 10643}, {"date": "2020-04-04", "dau": 11856, "wau": 51045, "mau": 76990, "new_players": 1239, "returning_players": 10617}, {"date": "2020-04-05", "dau": 11793, "wau": 51107, "mau": 77129, "new_players": 1241, "returning_players": 10552}, {"date": "2020-04-06", "dau": 11898, "wau": 51174, "mau": 77239, "new_players": 1243, "returning_players": 10655}, {"date": "2020-04-07", "dau": 12162, "wau": 51224, "mau": 77379, "new_players": 1245, "returning_players": 10917}, {"date": "2020-04-08", "dau": 12106, "wau": 51281, "mau": 77517, "new_players": 1248, "returning_players": 10858}, {"date": "2020-04-09", "dau": 12018, "wau": 51388, "mau": 77618, "new_players": 1249, "returning_players": 10769}, {"date": "2020-04-10", "dau": 11959, "wau": 51500, "mau": 77785, "new_players": 1251, "returning_players": 10708}, {"date": "2020-04-11", "dau": 12197, "wau": 51615, "mau": 77889, "new_players": 1253, "returning_players": 10944}, {"date": "2020-04-12", "dau": 11927, "wau": 51708, "mau": 78030, "new_players": 1256, "returning_players": 10671}, {"date": "2020-04-13", "dau": 12225, "wau": 51775, "mau": 78186, "new_players": 1257, "returning_players": 10968}, {"date": "2020-04-14", "dau": 12279, "wau": 51855, "mau": 78324, "new_players": 1260, "returning_players": 11019}, {"date": "2020-04-15", "dau": 11848, "wau": 51951, "mau": 78474, "new_players": 1261, "returning_players": 10587}, {"date": "2020-04-16", "dau": 12305, "wau": 52054, "mau": 78625, "new_players": 1264, "returning_players": 11041}, {"date": "2020-04-17", "dau": 12263, "wau": 52157, "mau": 78806, "new_players": 1266, "returning_players": 10997}, {"date": "2020-04-18", "dau": 12105, "wau": 52217, "mau": 78930, "new_players": 1268, "returning_players": 10837}, {"date": "2020-04-19", "dau": 12232, "wau": 52317, "mau": 79078, "new_players": 1270, "returning_players": 10962}, {"date": "2020-04-20", "dau": 12170, "wau": 52387, "mau": 79252, "new_players": 1272, "returning_players": 10898}, {"date": "2020-04-21", "dau": 12370, "wau": 52517, "mau": 79385, "new_players": 1274, "returning_players": 11096}, {"date": "2020-04-22", "dau": 12389, "wau": 52625, "mau": 79503, "new_players": 1276, "returning_players": 11113}, {"date": "2020-04-23", "dau": 12344, "wau": 52711, "mau": 79623, "new_players": 1278, "returning_players": 11066}, {"date": "2020-04-24", "dau": 12187, "wau": 52818, "mau": 79729, "new_players": 1281, "returning_players": 10906}, {"date": "2020-04-25", "dau": 12286, "wau": 52931, "mau": 79870, "new_players": 1282, "returning_players": 11004}, {"date": "2020-04-26", "dau": 12506, "wau": 53011, "mau": 80011, "new_players": 1285, "returning_players": 11221}, {"date": "2020-04-27", "dau": 12513, "wau": 53101, "mau": 80112, "new_players": 1287, "returning_players": 11226}, {"date": "2020-04-28", "dau": 12273, "wau": 53193, "mau": 80221, "new_players": 1288, "returning_players": 10985}, {"date": "2020-04-29", "dau": 12530, "wau": 53258, "mau": 80336, "new_players": 1291, "returning_players": 11239}, {"date": "2020-04-30", "dau": 12369, "wau": 53313, "mau": 80435, "new_players": 1294, "returning_players": 11075}, {"date": "2020-05-01", "dau": 12514, "wau": 53395, "mau": 80539, "new_players": 1295, "returning_players": 11219}, {"date": "2020-05-02", "dau": 12431, "wau": 53516, "mau": 80694, "new_players": 1297, "returning_players": 11134}, {"date": "2020-05-03", "dau": 12413, "wau": 53593, "mau": 80855, "new_players": 1300, "returning_players": 11113}, {"date": "2020-05-04", "dau": 12534, "wau": 53674, "mau": 81018, "new_players": 1301, "returning_players": 11233}, {"date": "2020-05-05", "dau": 12601, "wau": 53772, "mau": 81159, "new_players": 1304, "returning_players": 11297}, {"date": "2020-05-06", "dau": 12506, "wau": 53864, "mau": 81275, "new_players": 1306, "returning_players": 11200}, {"date": "2020-05-07", "dau": 12690, "wau": 53930, "mau": 81403, "new_players": 1308, "returning_players": 11382}, {"date": "2020-05-08", "dau": 12668, "wau": 53984, "mau": 81548, "new_players": 1310, "returning_players": 11358}, {"date": "2020-05-09", "dau": 12518, "wau": 54054, "mau": 81700, "new_players": 1313, "returning_players": 11205}, {"date": "2020-05-10", "dau": 12705, "wau": 54149, "mau": 81851, "new_players": 1314, "returning_players": 11391}, {"date": "2020-05-11", "dau": 12600, "wau": 54272, "mau": 81960, "new_players": 1317, "returning_players": 11283}, {"date": "2020-05-12", "dau": 12924, "wau": 54345, "mau": 82109, "new_players": 1319, "returning_players": 11605}, {"date": "2020-05-13", "dau": 12593, "wau": 54421, "mau": 82228, "new_players": 1321, "returning_players": 11272}, {"date": "2020-05-14", "dau": 12529, "wau": 54534, "mau": 82407, "new_players": 1323, "returning_players": 11206}, {"date": "2020-05-15", "dau": 12885, "wau": 54637, "mau": 82565, "new_players": 1326, "returning_players": 11559}, {"date": "2020-05-16", "dau": 12853, "wau": 54725, "mau": 82700, "new_players": 1327, "returning_players": 11526}, {"date": "2020-05-17", "dau": 12750, "wau": 54774, "mau": 82856, "new_players": 1330, "returning_players": 11420}, {"date": "2020-05-18", "dau": 12925, "wau": 54883, "mau": 83019, "new_players": 1332, "returning_players": 11593}, {"date": "2020-05-19", "dau": 12782, "wau": 54973, "mau": 83148, "new_players": 1334, "returning_players": 11448}, {"date": "2020-05-20", "dau": 12809, "wau": 55056, "mau": 83287, "new_players": 1336, "returning_players": 11473}, {"date": "2020-05-21", "dau": 12986, "wau": 55168, "mau": 83430, "new_players": 1339, "returning_players": 11647}, {"date": "2020-05-22", "dau": 12828, "wau": 55243, "mau": 83545, "new_players": 1341, "returning_players": 11487}, {"date": "2020-05-23", "dau": 12831, "wau": 55302, "mau": 83649, "new_players": 1343, "returning_players": 11488}, {"date": "2020-05-24", "dau": 13002, "wau": 55450, "mau": 83781, "new_players": 1345, "returning_players": 11657}, {"date": "2020-05-25", "dau": 13135, "wau": 55549, "mau": 83952, "new_players": 1347, "returning_players": 11788}, {"date": "2020-05-26", "dau": 12979, "wau": 55643, "mau": 84079, "new_players": 1350, "returning_players": 11629}, {"date": "2020-05-27", "dau": 12955, "wau": 55774, "mau": 84211, "new_players": 1352, "returning_players": 11603}, {"date": "2020-05-28", "dau": 12948, "wau": 55839, "mau": 84359, "new_players": 1354, "returning_players": 11594}, {"date": "2020-05-29", "dau": 13018, "wau": 55958, "mau": 84501, "new_players": 1356, "returning_players": 11662}, {"date": "2020-05-30", "dau": 13061, "wau": 56020, "mau": 84617, "new_players": 1358, "returning_players": 11703}, {"date": "2020-05-31", "dau": 13098, "wau": 56138, "mau": 84722, "new_players": 1361, "returning_players": 11737}, {"date": "2020-06-01", "dau": 13113, "wau": 56180, "mau": 84842, "new_players": 1363, "returning_players": 11750}, {"date": "2020-06-02", "dau": 13053, "wau": 56277, "mau": 84988, "new_players": 1365, "returning_players": 11688}, {"date": "2020-06-03", "dau": 13354, "wau": 56341, "mau": 85162, "new_players": 1368, "returning_players": 11986}, {"date": "2020-06-04", "dau": 13063, "wau": 56430, "mau": 85285, "new_players": 1369, "returning_players": 11694}, {"date": "2020-06-05", "dau": 13199, "wau": 56525, "mau": 85412, "new_players": 1372, "returning_players": 11827}, {"date": "2020-06-06", "dau": 13452, "wau": 56647, "mau": 85577, "new_players": 1375, "returning_players": 12077}, {"date": "2020-06-07", "dau": 13125, "wau": 56766, "mau": 85730, "new_players": 1376, "returning_players": 11749}, {"date": "2020-06-08", "dau": 13289, "wau": 56866, "mau": 85870, "new_players": 1379, "returning_players": 11910}, {"date": "2020-06-09", "dau": 13193, "wau": 56954, "mau": 85970, "new_players": 1381, "returning_players": 11812}, {"date": "2020-06-10", "dau": 13258, "wau": 57037, "mau": 86130, "new_players": 1383, "returning_players": 11875}, {"date": "2020-06-11", "dau": 13278, "wau": 57092, "mau": 86272, "new_players": 1386, "returning_players": 11892}, {"date": "2020-06-12", "dau": 13581, "wau": 57181, "mau": 86407, "new_players": 1388, "returning_players": 12193}, {"date": "2020-06-13", "dau": 13364, "wau": 57264, "mau": 86570, "new_players": 1390, "returning_players": 11974}, {"date": "2020-06-14", "dau": 13307, "wau": 57373, "mau": 86696, "new_players": 1392, "returning_players": 11915}, {"date": "2020-06-15", "dau": 13488, "wau": 57472, "mau": 86807, "new_players": 1395, "returning_players": 12093}, {"date": "2020-06-16", "dau": 13464, "wau": 57574, "mau": 87007, "new_players": 1397, "returning_players": 12067}, {"date": "2020-06-17", "dau": 13414, "wau": 57720, "mau": 87158, "new_players": 1399, "returning_players": 12015}, {"date": "2020-06-18", "dau": 13770, "wau": 57837, "mau": 87304, "new_players": 1402, "returning_players": 12368}, {"date": "2020-06-19", "dau": 13451, "wau": 57928, "mau": 87487, "new_players": 1404, "returning_players": 12047}, {"date": "2020-06-20", "dau": 13455, "wau": 57985, "mau": 87604, "new_players": 1406, "returning_players": 12049}, {"date": "2020-06-21", "dau": 13557, "wau": 58096, "mau": 87776, "new_players": 1409, "returning_players": 12148}, {"date": "2020-06-22", "dau": 13696, "wau": 58171, "mau": 87890, "new_players": 1410, "returning_players": 12286}, {"date": "2020-06-23", "dau": 13598, "wau": 58238, "mau": 88061, "new_players": 1414, "returning_players": 12184}, {"date": "2020-06-24", "dau": 13792, "wau": 58346, "mau": 88155, "new_players": 1415, "returning_players": 12377}, {"date": "2020-06-25", "dau": 13397, "wau": 58418, "mau": 88305, "new_players": 1418, "returning_players": 11979}, {"date": "2020-06-26", "dau": 13800, "wau": 58530, "mau": 88421, "new_players": 1420, "returning_players": 12380}, {"date": "2020-06-27", "dau": 13697, "wau": 58659, "mau": 88564, "new_players": 1423, "returning_players": 12274}, {"date": "2020-06-28", "dau": 13736, "wau": 58733, "mau": 88711, "new_players": 1424, "returning_players": 12312}, {"date": "2020-06-29", "dau": 13817, "wau": 58837, "mau": 88886, "new_players": 1428, "returning_players": 12389}, {"date": "2020-06-30", "dau": 13744, "wau": 58923, "mau": 89058, "new_players": 1429, "returning_players": 12315}, {"date": "2020-07-01", "dau": 13665, "wau": 59048, "mau": 89211, "new_players": 1432, "returning_players": 12233}, {"date": "2020-07-02", "dau": 13876, "wau": 59149, "mau": 89352, "new_players": 1434, "returning_players": 12442}, {"date": "2020-07-03", "dau": 13877, "wau": 59260, "mau": 89489, "new_players": 1437, "returning_players": 12440}, {"date": "2020-07-04", "dau": 13835, "wau": 59285, "mau": 89597, "new_players": 1439, "returning_players": 12396}, {"date": "2020-07-05", "dau": 13918, "wau": 59377, "mau": 89739, "new_players": 1441, "returning_players": 12477}, {"date": "2020-07-06", "dau": 13996, "wau": 59495, "mau": 89876, "new_players": 1444, "returning_players": 12552}, {"date": "2020-07-07", "dau": 14030, "wau": 59601, "mau": 90039, "new_players": 1446, "returning_players": 12584}, {"date": "2020-07-08", "dau": 13879, "wau": 59707, "mau": 90192, "new_players": 1449, "returning_players": 12430}, {"date": "2020-07-09", "dau": 13936, "wau": 59814, "mau": 90347, "new_players": 1450, "returning_players": 12486}, {"date": "2020-07-10", "dau": 13923, "wau": 59955, "mau": 90548, "new_players": 1454, "returning_players": 12469}, {"date": "2020-07-11", "dau": 14029, "wau": 60086, "mau": 90718, "new_players": 1455, "returning_players": 12574}, {"date": "2020-07-12", "dau": 14262, "wau": 60183, "mau": 90863, "new_players": 1458, "returning_players": 12804}, {"date": "2020-07-13", "dau": 14092, "wau": 60249, "mau": 90975, "new_players": 1461, "returning_players": 12631}, {"date": "2020-07-14", "dau": 14078, "wau": 60344, "mau": 91140, "new_players": 1463, "returning_players": 12615}, {"date": "2020-07-15", "dau": 14183, "wau": 60432, "mau": 91270, "new_players": 1465, "returning_players": 12718}, {"date": "2020-07-16", "dau": 14211, "wau": 60569, "mau": 91391, "new_players": 1468, "returning_players": 12743}, {"date": "2020-07-17", "dau": 14217, "wau": 60686, "mau": 91554, "new_players": 1470, "returning_players": 12747}, {"date": "2020-07-18", "dau": 14173, "wau": 60782, "mau": 91680, "new_players": 1472, "returning_players": 12701}, {"date": "2020-07-19", "dau": 14237, "wau": 60903, "mau": 91847, "new_players": 1475, "returning_players": 12762}, {"date": "2020-07-20", "dau": 14301, "wau": 61007, "mau": 92030, "new_players": 1477, "returning_players": 12824}, {"date": "2020-07-21", "dau": 14210, "wau": 61082, "mau": 92160, "new_players": 1480, "returning_players": 12730}, {"date": "2020-07-22", "dau": 14405, "wau": 61183, "mau": 92318, "new_players": 1482, "returning_players": 12923}, {"date": "2020-07-23", "dau": 14547, "wau": 61329, "mau": 92460, "new_players": 1485, "returning_players": 13062}, {"date": "2020-07-24", "dau": 14290, "wau": 61412, "mau": 92640, "new_players": 1487, "returning_players": 12803}, {"date": "2020-07-25", "dau": 14337, "wau": 61555, "mau": 92797, "new_players": 1490, "returning_players": 12847}, {"date": "2020-07-26", "dau": 14463, "wau": 61650, "mau": 92963, "new_players": 1492, "returning_players": 12971}, {"date": "2020-07-27", "dau": 14340, "wau": 61738, "mau": 93043, "new_players": 1494, "returning_players": 12846}, {"date": "2020-07-28", "dau": 14367, "wau": 61789, "mau": 93191, "new_players": 1497, "returning_players": 12870}, {"date": "2020-07-29", "dau": 14543, "wau": 61903, "mau": 93364, "new_players": 1499, "returning_players": 13044}, {"date": "2020-07-30", "dau": 14518, "wau": 61996, "mau": 93526, "new_players": 1502, "returning_players": 13016}, {"date": "2020-07-31", "dau": 14655, "wau": 62098, "mau": 93687, "new_players": 1504, "returning_players": 13151}, {"date": "2020-08-01", "dau": 14358, "wau": 62275, "mau": 93851, "new_players": 1507, "returning_players": 12851}, {"date": "2020-08-02", "dau": 14651, "wau": 62380, "mau": 94047, "new_players": 1509, "returning_players": 13142}, {"date": "2020-08-03", "dau": 14668, "wau": 62434, "mau": 94235, "new_players": 1512, "returning_players": 13156}, {"date": "2020-08-04", "dau": 14519, "wau": 62553, "mau": 94388, "new_players": 1514, "returning_players": 13005}, {"date": "2020-08-05", "dau": 14496, "wau": 62630, "mau": 94510, "new_players": 1517, "returning_players": 12979}, {"date": "2020-08-06", "dau": 14670, "wau": 62684, "mau": 94661, "new_players": 1519, "returning_players": 13151}, {"date": "2020-08-07", "dau": 14798, "wau": 62754, "mau": 94806, "new_players": 1522, "returning_players": 13276}, {"date": "2020-08-08", "dau": 14737, "wau": 62885, "mau": 94999, "new_players": 1524, "returning_players": 13213}, {"date": "2020-08-09", "dau": 14558, "wau": 62981, "mau": 95173, "new_players": 1527, "returning_players": 13031}, {"date": "2020-08-10", "dau": 14771, "wau": 63047, "mau": 95326, "new_players": 1529, "returning_players": 13242}, {"date": "2020-08-11", "dau": 14721, "wau": 63089, "mau": 95504, "new_players": 1532, "returning_players": 13189}, {"date": "2020-08-12", "dau": 14929, "wau": 63215, "mau": 95665, "new_players": 1534, "returning_players": 13395}, {"date": "2020-08-13", "dau": 14801, "wau": 63343, "mau": 95797, "new_players": 1537, "returning_players": 13264}, {"date": "2020-08-14", "dau": 14682, "wau": 63451, "mau": 95955, "new_players": 1539, "returning_players": 13143}, {"date": "2020-08-15", "dau": 14955, "wau": 63515, "mau": 96158, "new_players": 1542, "returning_players": 13413}, {"date": "2020-08-16", "dau": 14954, "wau": 63630, "mau": 96299, "new_players": 1545, "returning_players": 13409}, {"date": "2020-08-17", "dau": 14866, "wau": 63745, "mau": 96499, "new_players": 1547, "returning_players": 13319}, {"date": "2020-08-18", "dau": 15060, "wau": 63864, "mau": 96651, "new_players": 1549, "returning_players": 13511}, {"date": "2020-08-19", "dau": 14815, "wau": 63909, "mau": 96797, "new_players": 1552, "returning_players": 13263}, {"date": "2020-08-20", "dau": 14879, "wau": 63991, "mau": 96906, "new_players": 1555, "returning_players": 13324}, {"date": "2020-08-21", "dau": 15123, "wau": 64068, "mau": 97078, "new_players": 1557, "returning_players": 13566}, {"date": "2020-08-22", "dau": 15039, "wau": 64172, "mau": 97229, "new_players": 1560, "returning_players": 13479}, {"date": "2020-08-23", "dau": 15107, "wau": 64249, "mau": 97389, "new_players": 1562, "returning_players": 13545}, {"date": "2020-08-24", "dau": 15009, "wau": 64366, "mau": 97624, "new_players": 1565, "returning_players": 13444}, {"date": "2020-08-25", "dau": 15070, "wau": 64492, "mau": 97787, "new_players": 1567, "returning_players": 13503}, {"date": "2020-08-26", "dau": 15135, "wau": 64640, "mau": 97899, "new_players": 1570, "returning_players": 13565}, {"date": "2020-08-27", "dau": 15207, "wau": 64771, "mau": 98077, "new_players": 1573, "returning_players": 13634}, {"date": "2020-08-28", "dau": 15391, "wau": 64870, "mau": 98212, "new_players": 1575, "returning_players": 13816}, {"date": "2020-08-29", "dau": 15221, "wau": 65025, "mau": 98325, "new_players": 1578, "returning_players": 13643}, {"date": "2020-08-30", "dau": 15268, "wau": 65166, "mau": 98453, "new_players": 1580, "returning_players": 13688}, {"date": "2020-08-31", "dau": 15215, "wau": 65306, "mau": 98643, "new_players": 1583, "returning_players": 13632}, {"date": "2020-09-01", "dau": 15251, "wau": 65416, "mau": 98798, "new_players": 1586, "returning_players": 13665}, {"date": "2020-09-02", "dau": 15286, "wau": 65503, "mau": 98923, "new_players": 1588, "returning_players": 13698}, {"date": "2020-09-03", "dau": 15363, "wau": 65601, "mau": 99024, "new_players": 1591, "returning_players": 13772}, {"date": "2020-09-04", "dau": 15439, "wau": 65696, "mau": 99209, "new_players": 1593, "returning_players": 13846}, {"date": "2020-09-05", "dau": 15275, "wau": 65785, "mau": 99396, "new_players": 1596, "returning_players": 13679}, {"date": "2020-09-06", "dau": 15583, "wau": 65900, "mau": 99564, "new_players": 1599, "returning_players": 13984}, {"date": "2020-09-07", "dau": 15553, "wau": 65997, "mau": 99687, "new_players": 1601, "returning_players": 13952}, {"date": "2020-09-08", "dau": 15312, "wau": 66118, "mau": 99861, "new_players": 1604, "returning_players": 13708}, {"date": "2020-09-09", "dau": 15496, "wau": 66249, "mau": 100036, "new_players": 1607, "returning_players": 13889}, {"date": "2020-09-10", "dau": 15411, "wau": 66421, "mau": 100215, "new_players": 1609, "returning_players": 13802}, {"date": "2020-09-11", "dau": 15521, "wau": 66540, "mau": 100320, "new_players": 1612, "returning_players": 13909}, {"date": "2020-09-12", "dau": 15577, "wau": 66645, "mau": 100461, "new_players": 1614, "returning_players": 13963}, {"date": "2020-09-13", "dau": 15603, "wau": 66731, "mau": 100599, "new_players": 1618, "returning_players": 13985}, {"date": "2020-09-14", "dau": 15790, "wau": 66839, "mau": 100762, "new_players": 1619, "returning_players": 14171}, {"date": "2020-09-15", "dau": 15468, "wau": 67002, "mau": 100900, "new_players": 1623, "returning_players": 13845}, {"date": "2020-09-16", "dau": 15641, "wau": 67088, "mau": 101077, "new_players": 1625, "returning_players": 14016}, {"date": "2020-09-17", "dau": 15783, "wau": 67177, "mau": 101264, "new_players": 1628, "returning_players": 14155}, {"date": "2020-09-18", "dau": 15704, "wau": 67292, "mau": 101472, "new_players": 1630, "returning_players": 14074}, {"date": "2020-09-19", "dau": 15731, "wau": 67405, "mau": 101664, "new_players": 1634, "returning_players": 14097}, {"date": "2020-09-20", "dau": 15829, "wau": 67502, "mau": 101824, "new_players": 1636, "returning_players": 14193}, {"date": "2020-09-21", "dau": 15948, "wau": 67603, "mau": 102039, "new_players": 1638, "returning_players": 14310}, {"date": "2020-09-22", "dau": 15755, "wau": 67733, "mau": 102241, "new_players": 1641, "returning_players": 14114}], "curve": [{"day_n": 1, "eligible": 352274, "retained": 7098, "retention": 0.020149088493615765}, {"day_n": 2, "eligible": 350636, "retained": 14377, "retention": 0.041002635211444344}, {"day_n": 3, "eligible": 349000, "retained": 16148, "retention": 0.046269340974212037}, {"day_n": 4, "eligible": 347366, "retained": 18383, "retention": 0.05292112641997202}, {"day_n": 5, "eligible": 345736, "retained": 20820, "retention": 0.06021935812296087}, {"day_n": 6, "eligible": 344108, "retained": 23796, "retention": 0.06915270787078476}, {"day_n": 7, "eligible": 342483, "retained": 19910, "retention": 0.058134272358044047}, {"day_n": 8, "eligible": 340860, "retained": 16382, "retention": 0.04806078742005516}, {"day_n": 9, "eligible": 339241, "retained": 17362, "retention": 0.05117895537390822}, {"day_n": 10, "eligible": 337623, "retained": 17561, "retention": 0.05201363651173054}, {"day_n": 11, "eligible": 336009, "retained": 17386, "retention": 0.05174266165489615}, {"day_n": 12, "eligible": 334397, "retained": 17093, "retention": 0.051115889197570555}, {"day_n": 13, "eligible": 332788, "retained": 16329, "retention": 0.04906727406036275}, {"day_n": 14, "eligible": 331181, "retained": 15150, "retention": 0.045745377905133444}, {"day_n": 15, "eligible": 329577, "retained": 15055, "retention": 0.045679765274882655}, {"day_n": 16, "eligible": 327976, "retained": 14725, "retention": 0.04489657779837549}, {"day_n": 17, "eligible": 326377, "retained": 14382, "retention": 0.044065605113105394}, {"day_n": 18, "eligible": 324781, "retained": 13886, "retention": 0.042754964114280085}, {"day_n": 19, "eligible": 323188, "retained": 13245, "retention": 0.04098233845316039}, {"day_n": 20, "eligible": 321597, "retained": 12816, "retention": 0.03985111801416058}, {"day_n": 21, "eligible": 320009, "retained": 12319, "retention": 0.038495792305841395}, {"day_n": 22, "eligible": 318423, "retained": 12045, "retention": 0.03782704138834192}, {"day_n": 23, "eligible": 316840, "retained": 11522, "retention": 0.03636535790935488}, {"day_n": 24, "eligible": 315260, "retained": 11191, "retention": 0.03549768445092939}, {"day_n": 25, "eligible": 313682, "retained": 10623, "retention": 0.03386550710592256}, {"day_n": 26, "eligible": 312107, "retained": 10281, "retention": 0.03294062613142288}, {"day_n": 27, "eligible": 310534, "retained": 9778, "retention": 0.03148769538923274}, {"day_n": 28, "eligible": 308964, "retained": 9463, "retention": 0.030628163799018657}, {"day_n": 29, "eligible": 307397, "retained": 8992, "retention": 0.029252074678672857}, {"day_n": 30, "eligible": 305832, "retained": 8719, "retention": 0.028509116116037563}], "cohorts": [{"cohort_week": "2019-12-30", "d1": 0.0215962441314554, "d3": 0.04525821596244131, "d7": 0.054084507042253524, "d14": 0.04525821596244131, "d30": 0.025915492957746478, "cohort_size": 5325}, {"cohort_week": "2020-01-06", "d1": 0.020321423827865587, "d3": 0.047682295125514675, "d7": 0.054057643777394075, "d14": 0.04369770221809005, "d30": 0.02417319697170939, "cohort_size": 7529}, {"cohort_week": "2020-01-13", "d1": 0.02192752100840336, "d3": 0.04792542016806723, "d7": 0.059873949579831935, "d14": 0.04411764705882353, "d30": 0.029017857142857144, "cohort_size": 7616}, {"cohort_week": "2020-01-20", "d1": 0.01881894873458793, "d3": 0.048799480856586634, "d7": 0.058533419857235564, "d14": 0.046203763789746916, "d30": 0.027903958468526932, "cohort_size": 7705}, {"cohort_week": "2020-01-27", "d1": 0.02040030792917629, "d3": 0.04657428791377983, "d7": 0.054272517321016164, "d14": 0.04208365409289197, "d30": 0.029766487041313832, "cohort_size": 7794}, {"cohort_week": "2020-02-03", "d1": 0.01902587519025875, "d3": 0.04375951293759513, "d7": 0.0517503805175038, "d14": 0.04642313546423135, "d30": 0.02600202942668696, "cohort_size": 7884}, {"cohort_week": "2020-02-10", "d1": 0.018557993730407524, "d3": 0.04489028213166144, "d7": 0.057931034482758624, "d14": 0.044137931034482755, "d30": 0.025454545454545455, "cohort_size": 7975}, {"cohort_week": "2020-02-17", "d1": 0.0214427367377293, "d3": 0.043505205751115515, "d7": 0.05738720872583044, "d14": 0.04152206246901339, "d30": 0.028507684680218144, "cohort_size": 8068}, {"cohort_week": "2020-02-24", "d1": 0.02046317853204264, "d3": 0.04644038720745007, "d7": 0.05722337948780787, "d14": 0.04533758117877711, "d30": 0.027815218723195687, "cohort_size": 8161}, {"cohort_week": "2020-03-02", "d1": 0.020835857056329496, "d3": 0.05099939430648092, "d7": 0.05984251968503937, "d14": 0.04457904300423986, "d30": 0.028588734100545125, "cohort_size": 8255}, {"cohort_week": "2020-03-09", "d1": 0.01868039755717878, "d3": 0.04753921686025626, "d7": 0.0586756077116513, "d14": 0.04634175547838582, "d30": 0.02622440426296252, "cohort_size": 8351}, {"cohort_week": "2020-03-16", "d1": 0.020833333333333332, "d3": 0.04533617424242424, "d7": 0.06167140151515151, "d14": 0.049005681818181816, "d30": 0.03207859848484849, "cohort_size": 8448}, {"cohort_week": "2020-03-23", "d1": 0.01802012637491224, "d3": 0.0454013573601685, "d7": 0.05476246197051252, "d14": 0.0435291364380997, "d30": 0.027966300023402762, "cohort_size": 8546}, {"cohort_week": "2020-03-30", "d1": 0.022906062008329477, "d3": 0.04604349838037945, "d7": 0.05969458583988894, "d14": 0.04627487274409996, "d30": 0.02950023137436372, "cohort_size": 8644}, {"cohort_week": "2020-04-06", "d1": 0.01921097770154374, "d3": 0.049399656946826756, "d7": 0.05660377358490566, "d14": 0.047341337907375644, "d30": 0.031103487707261294, "cohort_size": 8745}, {"cohort_week": "2020-04-13", "d1": 0.020913407189690255, "d3": 0.04453990504182682, "d7": 0.06240108523626498, "d14": 0.04747908659281031, "d30": 0.029843997286909337, "cohort_size": 8846}, {"cohort_week": "2020-04-20", "d1": 0.02313366115333035, "d3": 0.042914617791685296, "d7": 0.05945462673223067, "d14": 0.04302637460885114, "d30": 0.026933392936969155, "cohort_size": 8948}, {"cohort_week": "2020-04-27", "d1": 0.017454706142288997, "d3": 0.044741493592576224, "d7": 0.05656208572691118, "d14": 0.04639858594785683, "d30": 0.028833406981882456, "cohort_size": 9052}, {"cohort_week": "2020-05-04", "d1": 0.02042376583660987, "d3": 0.047400611620795105, "d7": 0.058868501529051986, "d14": 0.04685452162516383, "d30": 0.02872433377020533, "cohort_size": 9156}, {"cohort_week": "2020-05-11", "d1": 0.019971931339738746, "d3": 0.04879628630033467, "d7": 0.05516571305192702, "d14": 0.04523372557486775, "d30": 0.027744791104393825, "cohort_size": 9263}, {"cohort_week": "2020-05-18", "d1": 0.018676627534685165, "d3": 0.045570971184631805, "d7": 0.058911419423692636, "d14": 0.046424759871931696, "d30": 0.029242262540021345, "cohort_size": 9370}, {"cohort_week": "2020-05-25", "d1": 0.01846381093057607, "d3": 0.04557923612576493, "d7": 0.060244777379193926, "d14": 0.04431314623338257, "d30": 0.03523950200464233, "cohort_size": 9478}, {"cohort_week": "2020-06-01", "d1": 0.018043387567793074, "d3": 0.04609929078014184, "d7": 0.05684188569044639, "d14": 0.04724655819774718, "d30": 0.028368794326241134, "cohort_size": 9588}, {"cohort_week": "2020-06-08", "d1": 0.01835240746468708, "d3": 0.04412826064542737, "d7": 0.0565006701721827, "d14": 0.045056191359934016, "d30": 0.02855964532426023, "cohort_size": 9699}, {"cohort_week": "2020-06-15", "d1": 0.019262128006522626, "d3": 0.04830819404810436, "d7": 0.056869139828781085, "d14": 0.046167957602935183, "d30": 0.025479005299633102, "cohort_size": 9812}, {"cohort_week": "2020-06-22", "d1": 0.021362353889560662, "d3": 0.044840790004030635, "d7": 0.05763804917372027, "d14": 0.044740024183796856, "d30": 0.029725916968964126, "cohort_size": 9924}, {"cohort_week": "2020-06-29", "d1": 0.021912350597609563, "d3": 0.047410358565737054, "d7": 0.061653386454183265, "d14": 0.046912350597609564, "d30": 0.029681274900398406, "cohort_size": 10040}, {"cohort_week": "2020-07-06", "d1": 0.018905080740448995, "d3": 0.050610476565576996, "d7": 0.060653800708940525, "d14": 0.04893658920834974, "d30": 0.02934226073257188, "cohort_size": 10156}, {"cohort_week": "2020-07-13", "d1": 0.021023943936149505, "d3": 0.04798520537278567, "d7": 0.05431185516838622, "d14": 0.045746544675880865, "d30": 0.030270585945104147, "cohort_size": 10274}, {"cohort_week": "2020-07-20", "d1": 0.021649186952756663, "d3": 0.04551140190512845, "d7": 0.06023284903300298, "d14": 0.04714711825267007, "d30": 0.02828827095160204, "cohort_size": 10393}, {"cohort_week": "2020-07-27", "d1": 0.01921613394216134, "d3": 0.043093607305936074, "d7": 0.05574581430745814, "d14": 0.04356925418569254, "d30": 0.025494672754946726, "cohort_size": 10512}, {"cohort_week": "2020-08-03", "d1": 0.021062529384109074, "d3": 0.0465444287729196, "d7": 0.05961448048895158, "d14": 0.04315937940761636, "d30": 0.02623413258110014, "cohort_size": 10635}, {"cohort_week": "2020-08-10", "d1": 0.018590816136828406, "d3": 0.04480386688975646, "d7": 0.05698085145937907, "d14": 0.04898680052054285, "d30": 0.028536902770031604, "cohort_size": 10758}, {"cohort_week": "2020-08-17", "d1": 0.021962874471604485, "d3": 0.048244807939716965, "d7": 0.0630398823745635, "d14": 0.0476934387061202, "d30": 0.03041720272008822, "cohort_size": 10882}, {"cohort_week": "2020-08-24", "d1": 0.018986191860465115, "d3": 0.04551235465116279, "d7": 0.05813953488372093, "d14": 0.04605741279069767, "d30": null, "cohort_size": 11008}, {"cohort_week": "2020-08-31", "d1": 0.023706896551724137, "d3": 0.045079022988505746, "d7": 0.05953663793103448, "d14": 0.04714439655172414, "d30": null, "cohort_size": 11136}, {"cohort_week": "2020-09-07", "d1": 0.019529516200621395, "d3": 0.04607190412782956, "d7": 0.05983133599644918, "d14": null, "d30": null, "cohort_size": 11265}, {"cohort_week": "2020-09-14", "d1": 0.02027204914436156, "d3": null, "d7": null, "d14": null, "d30": null, "cohort_size": 11395}, {"cohort_week": "2020-09-21", "d1": null, "d3": null, "d7": null, "d14": null, "d30": null, "cohort_size": 3279}], "first_return": [{"first_return_day": -1, "players": 232568, "share": 0.7604436422611107}, {"first_return_day": 1, "players": 6143, "share": 0.020086191111459886}, {"first_return_day": 2, "players": 12269, "share": 0.04011679614952}, {"first_return_day": 3, "players": 12236, "share": 0.040008893771743964}, {"first_return_day": 4, "players": 12201, "share": 0.0398944518559209}, {"first_return_day": 5, "players": 12115, "share": 0.039613251719898504}, {"first_return_day": 6, "players": 12320, "share": 0.040283554369719324}, {"first_return_day": 7, "players": 5980, "share": 0.01955321876062675}], "segments": [{"segment": "One-and-done", "players": 232568, "avg_return_days": 0.0, "avg_logins": 1.0, "total_logins": 232568, "share_of_players": 0.7604436422611107, "share_of_logins": 0.33211237395915}, {"segment": "Tried it", "players": 17351, "avg_return_days": 1.9966572531842546, "avg_logins": 2.9966572531842544, "total_logins": 51995, "share_of_players": 0.056733762327029216, "share_of_logins": 0.07425003819960616}, {"segment": "Regular", "players": 43324, "avg_return_days": 5.864763179761795, "avg_logins": 6.864763179761795, "total_logins": 297409, "share_of_players": 0.14165947317481492, "share_of_logins": 0.4247067912473635}, {"segment": "Core", "players": 12589, "avg_return_days": 8.396854396695527, "avg_logins": 9.396854396695527, "total_logins": 118297, "share_of_players": 0.04116312223704518, "share_of_logins": 0.16893079659388036}], "progress": [{"version": "gate_30", "players": 44700, "d1_retention": 0.4481879194630872, "d7_retention": 0.19020134228187918, "median_rounds": 17.0, "never_played": 0.043333333333333335, "under_10_rounds": 0.37662192393736016, "reached_30_rounds": 0.37261744966442956, "reached_40_rounds": 0.30348993288590603}, {"version": "gate_40", "players": 45489, "d1_retention": 0.44228274967574577, "d7_retention": 0.18200004396667327, "median_rounds": 16.0, "never_played": 0.04521972344962518, "under_10_rounds": 0.3825540240497703, "reached_30_rounds": 0.3652091714480424, "reached_40_rounds": 0.30396359559453934}], "d7_rounds": [{"rounds_bucket": "0", "version": "gate_30", "players": 1937, "d1_retention": 0.021166752710376872, "d7_retention": 0.008260196179659268}, {"rounds_bucket": "0", "version": "gate_40", "players": 2057, "d1_retention": 0.02236266407389402, "d7_retention": 0.006319883325230919}, {"rounds_bucket": "1-9", "version": "gate_30", "players": 14898, "d1_retention": 0.11592160021479393, "d7_retention": 0.01805611491475366}, {"rounds_bucket": "1-9", "version": "gate_40", "players": 15345, "d1_retention": 0.11619420006516781, "d7_retention": 0.018246985988921473}, {"rounds_bucket": "10-29", "version": "gate_30", "players": 11209, "d1_retention": 0.4393790703898653, "d7_retention": 0.08109554822018021}, {"rounds_bucket": "10-29", "version": "gate_40", "players": 11474, "d1_retention": 0.4330660624019522, "d7_retention": 0.07338330137702632}, {"rounds_bucket": "30-39", "version": "gate_30", "players": 3090, "d1_retention": 0.6401294498381876, "d7_retention": 0.15728155339805824}, {"rounds_bucket": "30-39", "version": "gate_40", "players": 2786, "d1_retention": 0.6611629576453697, "d7_retention": 0.1568557071069634}, {"rounds_bucket": "40-99", "version": "gate_30", "players": 7398, "d1_retention": 0.783860502838605, "d7_retention": 0.32900783995674504}, {"rounds_bucket": "40-99", "version": "gate_40", "players": 7479, "d1_retention": 0.7724294691803717, "d7_retention": 0.2938895574274636}, {"rounds_bucket": "100+", "version": "gate_30", "players": 6168, "d1_retention": 0.9020752269779507, "d7_retention": 0.711413748378729}, {"rounds_bucket": "100+", "version": "gate_40", "players": 6348, "d1_retention": 0.8982356647763075, "d7_retention": 0.7103024574669187}], "money": [{"testgroup": "a", "players": 202103.0, "payers": 1928.0, "conversion": 0.009539690157988749, "revenue": 5136189.0, "arpu": 25.413719736965806, "arppu": 2663.9984439834025, "median_payer_revenue": 311.0, "top_1pct_payer_revenue_share": 0.1382295316624836}, {"testgroup": "b", "players": 202667.0, "payers": 1805.0, "conversion": 0.008906235351586593, "revenue": 5421603.0, "arpu": 26.75128659327863, "arppu": 3003.6581717451522, "median_payer_revenue": 3022.0, "top_1pct_payer_revenue_share": 0.013252906935458018}], "tiers": [{"testgroup": "a", "tier": "Non-payer", "players": 200175, "revenue": 0, "share_of_group_revenue": 0.0}, {"testgroup": "a", "tier": "1-499", "players": 1805, "revenue": 545937, "share_of_group_revenue": 0.10629223340496231}, {"testgroup": "a", "tier": "10,000+", "players": 123, "revenue": 4590252, "share_of_group_revenue": 0.8937077665950377}, {"testgroup": "b", "tier": "Non-payer", "players": 200862, "revenue": 0, "share_of_group_revenue": 0.0}, {"testgroup": "b", "tier": "2,000-9,999", "players": 1805, "revenue": 5421603, "share_of_group_revenue": 1.0}], "payer_hist": {"edges": [1.0, 1.42050317207359, 2.017829261871131, 2.8663328671908515, 4.071634930063393, 5.783770333680679, 8.215864105538529, 11.67066102324303, 16.57821100371233, 23.54940131807865, 33.451999272764716, 47.51867107916569, 67.5004230006764, 95.88456498876997, 136.20432871944405, 193.4786809961242, 274.83708008360856, 390.40694406220916, 554.5743024399245, 787.7745557664119, 1119.036255345051, 1589.5945503829962, 2258.0241011299377, 3207.5303982736923, 4556.307105270244, 6472.248695977823, 9193.849803085652, 13059.892808851315, 18551.619161914376, 26352.63386660053, 37433.99999999999], "a": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 645, 1067, 93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 123], "b": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 236, 842, 727, 0, 0, 0, 0, 0, 0]}};
+// Coach's API proxy (coach-proxy/). Empty = built-in answers only. Set COACH_API_URL when building.
+const COACH_API = "";
+
+/* ------------------------------------------------------------------ helpers */
+const $ = (s, r = document) => r.querySelector(s);
+const F = {
+  pct1: v => (v * 100).toFixed(1) + "%",
+  pct2: v => (v * 100).toFixed(2) + "%",
+  pts: v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1) + " pts",
+  pts3: v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(3) + " pts",
+  int: v => Math.round(v).toLocaleString("en-US"),
+  signed: (v, d = 2) => (v >= 0 ? "+" : "−") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }),
+  num: (v, d = 2) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }),
+  short: v => {
+    const a = Math.abs(v);
+    if (a >= 1e6) return (v / 1e6).toFixed(a >= 1e7 ? 0 : 1) + "M";
+    if (a >= 1e3) return (v / 1e3).toFixed(a >= 1e4 ? 0 : 1) + "k";
+    return String(Math.round(v * 100) / 100);
+  },
+  p: p => p < 0.001 ? "p < 0.001" : "p = " + p.toFixed(3),
+  date: s => new Date(s + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const sum = a => a.reduce((x, y) => x + y, 0);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+/* ------------------------------------------------------------------ tooltip */
+const tip = $("#tip");
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 14, top = y + 14;
+  if (left + w > innerWidth - 8) left = x - w - 14;
+  if (top + h > innerHeight - 8) top = y - h - 14;
+  tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+const tipRow = (color, name, value) =>
+  `<div class="r"><span><i style="background:${color}"></i>${esc(name)}</span><span>${esc(value)}</span></div>`;
+
+/* ------------------------------------------------------------------ svg charts */
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs = {}, parent, style) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (style) Object.assign(e.style, style);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function niceStep(raw) {
+  const exp = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / exp;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * exp;
+}
+function yScale(max, n = 4) {
+  const step = niceStep((max || 1) / n), top = Math.ceil((max || 1) / step) * step;
+  const ticks = []; for (let v = 0; v <= top + step / 2; v += step) ticks.push(v);
+  return { top, ticks };
+}
+function frame(host, height) {
+  host.innerHTML = "";
+  const w = host.clientWidth;
+  if (!w) { host._w = 0; return null; }   // hidden: let the ResizeObserver redraw it when shown
+  const svg = el("svg", { viewBox: `0 0 ${w} ${height}`, role: "img" }, host);
+  return { svg, w, h: height };
+}
+function legend(host, items, kind = "box") {
+  host.innerHTML = items.map(([name, color]) =>
+    `<span><i class="${kind === "line" ? "line" : ""}" style="background:${color}"></i>${esc(name)}</span>`).join("");
+}
+function drawYAxis(svg, m, w, h, sc, fmt) {
+  for (const t of sc.ticks) {
+    const y = m.t + (h - m.t - m.b) * (1 - t / sc.top);
+    el("line", { x1: m.l, x2: w - m.r, y1: y, y2: y, class: t === 0 ? "baseline" : "gridline" }, svg);
+    el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end" }, svg).textContent = fmt(t);
+  }
+}
+
+/* Line chart with crosshair tooltip. series: [{name, color, values}] */
+function lineChart(host, o) {
+  const f = frame(host, o.height || 260); if (!f) return;
+  const { svg, w, h } = f, n = o.x.length;
+  const labelled = o.series.length > 1 && o.series.length <= 4 && w > 420;
+  const m = { t: 12, r: labelled ? 56 : 16, b: 28, l: 52 };
+  const max = o.yMax ?? Math.max(...o.series.flatMap(s => s.values));
+  const sc = yScale(max);
+  const X = i => m.l + (w - m.l - m.r) * (n === 1 ? 0.5 : i / (n - 1));
+  const Y = v => m.t + (h - m.t - m.b) * (1 - v / sc.top);
+  drawYAxis(svg, m, w, h, sc, o.yFmt);
+  for (const i of o.xTicks) el("text", { x: X(i), y: h - 8, "text-anchor": "middle" }, svg).textContent = o.xFmt(o.x[i], i);
+
+  for (const s of o.series) {
+    const d = s.values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+    if (o.area && o.series.length === 1)
+      el("path", { d: `${d}L${X(n - 1)},${Y(0)}L${X(0)},${Y(0)}Z` }, svg, { fill: s.color, opacity: 0.12, stroke: "none" });
+    el("path", { d, fill: "none", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg, { stroke: s.color });
+    const last = s.values[n - 1];
+    el("circle", { cx: X(n - 1), cy: Y(last), r: 3.5, "stroke-width": 2 }, svg, { fill: s.color, stroke: "var(--ring)" });
+    if (labelled) el("text", { x: X(n - 1) + 8, y: Y(last) + 4, class: "lbl" }, svg).textContent = s.name;
+  }
+  for (const i of o.marks || []) {
+    const s = o.series[0], v = s.values[i];
+    el("circle", { cx: X(i), cy: Y(v), r: 4, "stroke-width": 2 }, svg, { fill: s.color, stroke: "var(--ring)" });
+    el("text", { x: X(i), y: Y(v) - 10, "text-anchor": "middle", class: "lbl" }, svg).textContent = o.markFmt(i, v);
+  }
+
+  const cross = el("g", {}, svg, { display: "none" });
+  const vline = el("line", { y1: m.t, y2: h - m.b, "stroke-width": 1 }, cross, { stroke: "var(--axis)" });
+  const dots = o.series.map(s => el("circle", { r: 4, "stroke-width": 2 }, cross, { fill: s.color, stroke: "var(--ring)" }));
+  const hit = el("rect", { x: m.l, y: m.t, width: w - m.l - m.r, height: h - m.t - m.b, class: "hit" }, svg);
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (w / r.width);
+    const i = Math.max(0, Math.min(n - 1, Math.round((px - m.l) / (w - m.l - m.r) * (n - 1))));
+    cross.style.display = ""; vline.setAttribute("x1", X(i)); vline.setAttribute("x2", X(i));
+    o.series.forEach((s, k) => { dots[k].setAttribute("cx", X(i)); dots[k].setAttribute("cy", Y(s.values[i])); });
+    showTip(`<div class="t">${esc(o.tipTitle(o.x[i], i))}</div>` +
+      o.series.map(s => tipRow(s.color, s.name, o.tipFmt(s.values[i], i, s))).join(""), ev.clientX, ev.clientY);
+  };
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerleave", () => { cross.style.display = "none"; hideTip(); });
+}
+
+/* Bar chart, one hit area per category: hover shows a tooltip, click (or Enter) selects. */
+function barChart(host, o) {
+  const f = frame(host, o.height || 260); if (!f) return;
+  const { svg, w, h } = f, n = o.cats.length, g = o.groups.length;
+  const lines = Math.max(...o.cats.map(c => String(c).split("\n").length));
+  const m = { t: 12, r: 12, b: 14 + lines * 14, l: 52 };
+  const sc = yScale(Math.max(...o.groups.flatMap(s => s.values)));
+  const Y = v => m.t + (h - m.t - m.b) * (1 - v / sc.top);
+  const band = (w - m.l - m.r) / n;
+  if (o.selected != null && o.selected >= 0)
+    el("rect", { x: m.l + band * o.selected + 2, y: m.t, width: band - 4, height: h - m.t - m.b, rx: 4, class: "band" }, svg);
+  drawYAxis(svg, m, w, h, sc, o.yFmt);
+  const gap = n > 20 ? 1 : 2;
+  const bw = Math.max(1, (band * (n > 20 ? 0.9 : 0.66) - gap * (g - 1)) / g);
+  const every = Math.max(1, Math.ceil(n / Math.floor((w - m.l - m.r) / (lines > 1 ? 78 : 40))));
+  o.cats.forEach((cat, ci) => {
+    const x0 = m.l + band * ci + (band - (bw * g + gap * (g - 1))) / 2;
+    const showLabel = o.labelAt ? o.labelAt(ci) : ci % every === 0;
+    if (showLabel) {
+      const t = el("text", { x: m.l + band * (ci + 0.5), y: h - m.b + 16, "text-anchor": "middle" }, svg);
+      String(cat).split("\n").forEach((line, k) => {
+        const ts = el("tspan", { x: m.l + band * (ci + 0.5), dy: k ? 14 : 0 }, t);
+        ts.textContent = line;
+        if (k === 0) ts.setAttribute("class", "lbl" + (o.selected === ci ? " sel" : ""));
+      });
+    }
+    const bars = o.groups.map((s, gi) => {
+      const v = s.values[ci], x = x0 + gi * (bw + gap), y = Y(v), base = Y(0);
+      const r = Math.min(4, bw / 2, base - y);
+      return el("path", {
+        class: "bar",
+        d: v > 0 ? `M${x},${base}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${base}Z` : "",
+      }, svg, { fill: s.color });
+    });
+    const hit = el("rect", { x: m.l + band * ci, y: m.t, width: band, height: h - m.t - m.b, class: "bar-hit" + (o.onSelect ? " pick" : "") }, svg);
+    hit.addEventListener("pointermove", ev => { bars.forEach(b => b.classList.add("on")); showTip(o.tip(ci), ev.clientX, ev.clientY); });
+    hit.addEventListener("pointerleave", () => { bars.forEach(b => b.classList.remove("on")); hideTip(); });
+    if (o.onSelect) {
+      hit.setAttribute("tabindex", "0");
+      hit.setAttribute("role", "button");
+      hit.setAttribute("aria-label", String(cat).replace("\n", " "));
+      hit.addEventListener("click", () => { hideTip(); o.onSelect(ci); });
+      hit.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); o.onSelect(ci); } });
+    }
+  });
+}
+
+function table(host, headers, rows) {
+  host.innerHTML = `<table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? "num" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("") +
+    "</tbody></table>";
+}
+
+/* Charts redraw when their box changes size (level shown, window resized). */
+const charts = new Map();
+const ro = new ResizeObserver(entries => {
+  for (const e of entries) {
+    const draw = charts.get(e.target), w = Math.round(e.contentRect.width);
+    if (draw && w && e.target._w !== w) { e.target._w = w; draw(); }
+  }
+});
+function chart(id, draw) { const host = $("#" + id); charts.set(host, () => draw(host)); ro.observe(host); return () => draw(host); }
+
+function kpis(host, items) {
+  host.innerHTML = items.map(k => k[3]
+    ? `<button class="kpi" type="button" data-goto="${k[3]}"><span class="label">${esc(k[0])}</span><span class="value">${esc(k[1])}</span><span class="note">${esc(k[2] || "")}</span><span class="go">See ${esc(LEVEL_NAMES[k[3]])} &rarr;</span></button>`
+    : `<div class="kpi"><span class="label">${esc(k[0])}</span><span class="value">${esc(k[1])}</span><span class="note">${esc(k[2] || "")}</span></div>`).join("");
+}
+function testRow(name, detail, est, small, sig) {
+  return `<div class="test"><div class="name">${esc(name)}<small>${esc(detail)}</small></div>
+    <div class="est">${esc(est)}<small>${esc(small)}</small></div>
+    <span class="chip ${sig ? "sig" : "ns"}">${sig ? "Real difference" : "Could be luck"}</span></div>`;
+}
+function detail(host, eyebrow, title, text, facts) {
+  host.innerHTML = `<span class="eyebrow">${esc(eyebrow)}</span><h4>${esc(title)}</h4>${text ? `<p>${esc(text)}</p>` : ""}
+    <div class="facts">${facts.map(([v, l]) => `<div class="fact"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>`;
+}
+
+/* ------------------------------------------------------------------ data */
+const f = DATA.findings, R = f.retention, O = f.onboarding, E = f.engagement, M = f.monetization, T = M.tests;
+const daily = DATA.daily;
+const C = { a: "var(--series-a)", b: "var(--series-b)", c: "var(--series-c)", muted: "var(--axis)", gold: "var(--gold)" };
+const LEVEL_NAMES = { home: "home", start: "Level 1", back: "Level 2", play: "Level 3", spend: "Level 4", lab: "the lab" };
+const of100 = v => { const x = v * 100; return (x < 10 && Math.abs(x - Math.round(x)) > 0.05 ? x.toFixed(1) : Math.round(x)) + " out of 100"; };
+const pctOrNot = v => F.pct1(v);
+$("#window").innerHTML = `<span>Players who joined <b>${F.date(f.window.cohort_start)}</b> to <b>${F.date(f.window.last_full_day)} 2020</b></span>
+  <span><b>${F.int(f.window.new_players)}</b> new players · <b>${F.int(M.players_a + M.players_b)}</b> in the shop test</span>`;
+const monthTicks = (rows, key = "date") => rows.map((r, i) => [r[key], i]).filter(([d, i]) => i === 0 || d.slice(8) === "01").map(([, i]) => i);
+const rememberPick = (key, fallback) => { const v = store.get(key); return v == null ? fallback : +v; };
+
+/* ------------------------------------------------------------------ home */
+const nNever = Math.round(O.never_returned_30d * 100), nBuy = Math.max(1, Math.round(M.conversion_a * 100));
+const nBack = 100 - nNever;
+$("#dots").setAttribute("aria-label", `${nNever} of 100 players never come back, ${nBack} come back, ${nBuy} buys something`);
+$("#dots").innerHTML = Array.from({ length: 100 }, (_, i) =>
+  `<span class="dot ${i >= 100 - nBuy ? "buy" : i >= nNever ? "back" : ""}"></span>`).join("");
+$("#dot-key").innerHTML = `
+  <div><i style="background:var(--axis)"></i><p style="margin:0"><b>${nNever}</b><span>play once and never come back</span></p></div>
+  <div><i style="background:var(--series-a)"></i><p style="margin:0"><b>${nBack}</b><span>come back, all of them within the first week</span></p></div>
+  <div><i style="background:var(--gold)"></i><p style="margin:0"><b>About ${nBuy}</b><span>buys something in the shop (about 1 in ${Math.round(1 / M.conversion_a)})</span></p></div>`;
+kpis($("#home-kpis"), [
+  ["New players", F.int(f.window.new_players), "Joined between January and September 2020", "start"],
+  ["Back the next day", F.pct1(R.d1), of100(R.d1) + " new players", "back"],
+  ["Playing each day", F.int(E.dau_last30_avg), "Players on a normal day lately", "play"],
+  ["Buy something", "1 in " + Math.round(1 / M.conversion_a), "Players who spend money", "spend"],
+  ["Money per player", F.num(M.arpu_a), "Average across all players, shop A", "spend"],
+]);
+const learned = [
+  ["crit", "Big problem", "Most players leave after one day",
+   `${of100(O.never_returned_30d)} new players never come back. Everyone who does come back does it within a week, so the first week is everything.`, "start"],
+  ["watch", "Keep an eye on", "The new shop is not clearly better yet",
+   `Shop B made a little more money per player, but that could be luck. Most of shop A's money came from just ${T.group_a_10k_payers} huge spenders.`, "spend"],
+  ["watch", "Keep an eye on", "A few superfans do most of the playing",
+   `${Math.round((E.segments.Regular.share_of_players + E.segments.Core.share_of_players) * 100)} out of 100 new players make ${Math.round((E.segments.Regular.share_of_logins + E.segments.Core.share_of_logins) * 100)} out of 100 of all visits.`, "play"],
+  ["good", "Working well", "Keep the first gate at level 30",
+   "Moving it to level 40 made fewer players come back a week later, and that's a real difference, not luck.", "start"],
+];
+$("#learned").innerHTML = learned.map(([cls, chip, what, why, tab]) =>
+  `<li class="${cls}"><span class="stripe"></span><div class="what"><b>${esc(what)}</b><span>${esc(why)}</span></div>
+   <div class="meta"><span class="chip ${cls}">${chip}</span><button class="linkbtn" data-goto="${tab}">See ${LEVEL_NAMES[tab]} &rarr;</button></div></li>`).join("");
+legend($("#home-legend"), [["Players that day", C.a], ["New players that day", C.c]], "line");
+chart("home-dau", host => lineChart(host, {
+  x: daily.map(d => d.date), height: 240,
+  series: [{ name: "Playing", color: C.a, values: daily.map(d => d.dau) },
+           { name: "New", color: C.c, values: daily.map(d => d.new_players) }],
+  yFmt: F.short, xTicks: monthTicks(daily).filter((_, k) => k % 2 === 0), xFmt: d => F.date(d).split(" ")[0],
+  tipTitle: d => F.date(d) + ", 2020", tipFmt: v => F.int(v),
+}));
+
+/* ------------------------------------------------------------------ level 1: starting */
+kpis($("#start-kpis"), [
+  ["Never come back", F.pct1(O.never_returned_30d), of100(O.never_returned_30d) + " new players"],
+  ["Back in week one", F.pct1(O.returned_within_7d), "Came back at least once in 7 days"],
+  ["Usual comeback day", "Day " + O.median_first_return_day, "For players who come back"],
+  ["Barely played", F.pct1(O.cookie_cats_under_10_rounds), "Played under 10 rounds (Cookie Cats)"],
+]);
+const fr = DATA.first_return.filter(r => r.first_return_day > 0);
+$("#start-return-sub").textContent = `Out of every 100 new players, how many came back for the first time on each day. After day ${fr[fr.length - 1].first_return_day}, nobody comes back for the first time.`;
+chart("start-return", host => barChart(host, {
+  cats: fr.map(r => "Day " + r.first_return_day), height: 240,
+  groups: [{ name: "Share", color: C.a, values: fr.map(r => r.share) }],
+  yFmt: v => (v * 100).toFixed(v < 0.01 && v > 0 ? 1 : 0) + "%",
+  tip: ci => `<div class="t">First came back on day ${fr[ci].first_return_day}</div>${tipRow(C.a, "Out of 100 new players", (fr[ci].share * 100).toFixed(1))}${tipRow("transparent", "Players", F.int(fr[ci].players))}`,
+}));
+table($("#start-return-table"), ["First came back", "Players", "Out of 100"],
+  DATA.first_return.map(r => [r.first_return_day < 0 ? "Never" : "Day " + r.first_return_day, F.int(r.players), (r.share * 100).toFixed(1)]));
+
+const buckets = ["0", "1-9", "10-29", "30-39", "40-99", "100+"];
+const dr = (b, v) => DATA.d7_rounds.find(r => r.rounds_bucket === b && r.version === v);
+const ccPlayers = sum(DATA.progress.map(p => p.players));
+const bucketPlayers = b => dr(b, "gate_30").players + dr(b, "gate_40").players;
+let roundsMetric = store.get("ga-rounds") || "d7_retention";
+let pickRounds = rememberPick("ga-pick-rounds", 3);
+legend($("#start-rounds-legend"), [["Gate at level 30", C.a], ["Gate at level 40", C.b]]);
+const drawRounds = chart("start-rounds", host => barChart(host, {
+  cats: buckets.map(b => `${b}\n${Math.round(bucketPlayers(b) / ccPlayers * 100)}%`), height: 250,
+  groups: [{ name: "Gate 30", color: C.a, values: buckets.map(b => dr(b, "gate_30")[roundsMetric]) },
+           { name: "Gate 40", color: C.b, values: buckets.map(b => dr(b, "gate_40")[roundsMetric]) }],
+  yFmt: v => (v * 100).toFixed(0) + "%", selected: pickRounds,
+  onSelect: ci => { pickRounds = ci; store.set("ga-pick-rounds", ci); drawRounds(); showRounds(); },
+  tip: ci => `<div class="t">Played ${buckets[ci]} rounds</div>` +
+    tipRow(C.a, "Gate at 30", F.pct1(dr(buckets[ci], "gate_30")[roundsMetric])) +
+    tipRow(C.b, "Gate at 40", F.pct1(dr(buckets[ci], "gate_40")[roundsMetric])),
+}));
+function showRounds() {
+  const b = buckets[pickRounds], a = dr(b, "gate_30"), c = dr(b, "gate_40");
+  const wk = (a.d7_retention * a.players + c.d7_retention * c.players) / (a.players + c.players);
+  const nx = (a.d1_retention * a.players + c.d1_retention * c.players) / (a.players + c.players);
+  detail($("#start-detail"), "You picked", `Players who played ${b} rounds`,
+    `${Math.round(bucketPlayers(b) / ccPlayers * 100)} out of 100 players are in this group. About ${Math.round(wk * 100)} out of 100 of them came back a week later.`,
+    [[F.int(bucketPlayers(b)), "players"], [F.pct1(nx), "back the next day"], [F.pct1(wk), "back a week later"]]);
+}
+function setRounds(v) {
+  roundsMetric = v; store.set("ga-rounds", v);
+  for (const b of document.querySelectorAll("#start-d1, #start-d7")) b.setAttribute("aria-pressed", String(b.dataset.v === v));
+  drawRounds();
+}
+for (const b of document.querySelectorAll("#start-d1, #start-d7")) b.addEventListener("click", () => setRounds(b.dataset.v));
+setRounds(roundsMetric); showRounds();
+const G = O.gate_test, gap100 = v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1);
+$("#start-gate").innerHTML =
+  testRow("Came back the next day", `Gate at 30: ${(G.d1.rate_a * 100).toFixed(1)} of 100 · gate at 40: ${(G.d1.rate_b * 100).toFixed(1)} of 100`,
+    `Gate at 40: ${gap100(G.d1.diff)} of 100 players`, `range ${gap100(G.d1.ci_low)} to ${gap100(G.d1.ci_high)} · ${F.p(G.d1.p_value)}`, G.d1.p_value < 0.05) +
+  testRow("Came back a week later", `Gate at 30: ${(G.d7.rate_a * 100).toFixed(1)} of 100 · gate at 40: ${(G.d7.rate_b * 100).toFixed(1)} of 100`,
+    `Gate at 40: ${gap100(G.d7.diff)} of 100 players`, `range ${gap100(G.d7.ci_low)} to ${gap100(G.d7.ci_high)} · ${F.p(G.d7.p_value)}`, G.d7.p_value < 0.05);
+
+/* ------------------------------------------------------------------ level 2: coming back */
+kpis($("#back-kpis"), [1, 7, 30].map(n => [`Day ${n}`, F.pct1(R["d" + n]),
+  n === 1 ? "The lowest day of the first week" : n === 7 ? `Most players show up on day ${R.peak_day} (${F.pct1(R.peak_retention)})` : "A month after starting"]));
+const curve = DATA.curve;
+chart("back-curve", host => lineChart(host, {
+  x: curve.map(r => r.day_n), area: true, height: 260,
+  series: [{ name: "Came back", color: C.a, values: curve.map(r => r.retention) }],
+  yFmt: v => (v * 100).toFixed(0) + "%", xTicks: [0, 6, 13, 20, 29], xFmt: d => "Day " + d,
+  marks: [0, curve.findIndex(r => r.day_n === R.peak_day), 29], markFmt: (i, v) => `Day ${curve[i].day_n}: ${F.pct1(v)}`,
+  tipTitle: d => "Day " + d + " after starting", tipFmt: v => (v * 100).toFixed(1) + " out of 100",
+}));
+table($("#back-curve-table"), ["Day", "Players who had reached it", "Played that day", "Out of 100"],
+  curve.map(r => ["Day " + r.day_n, F.int(r.eligible), F.int(r.retained), (r.retention * 100).toFixed(1)]));
+
+const cohorts = DATA.cohorts, days = [1, 3, 7, 14, 30];
+const bFrom = $("#back-from"), bTo = $("#back-to");
+for (const s of [bFrom, bTo]) s.innerHTML = cohorts.map((c, i) => `<option value="${i}">${F.date(c.cohort_week)}</option>`).join("");
+bFrom.value = "0"; bTo.value = String(cohorts.length - 1);
+const heatMax = Math.max(...cohorts.flatMap(c => days.map(n => c["d" + n] ?? 0)));
+let pickWeek = rememberPick("ga-pick-week", cohorts.findLastIndex(c => c.d30 != null));
+function heatCell(v, title) {
+  if (v == null) return `<td class="empty">&middot;</td>`;
+  const k = Math.round(12 + 80 * v / heatMax);
+  return `<td style="background:color-mix(in srgb, var(--series-a) ${k}%, var(--ring));color:var(--ink)" data-tip="${esc(title)}">${F.pct1(v)}</td>`;
+}
+function selectedWeeks() { let a = +bFrom.value, b = +bTo.value; if (a > b) [a, b] = [b, a]; return [a, b]; }
+function avgOf(rows) {
+  return days.map(n => {
+    const done = rows.filter(r => r["d" + n] != null);
+    return done.length ? sum(done.map(r => r["d" + n] * r.cohort_size)) / sum(done.map(r => r.cohort_size)) : null;
+  });
+}
+function drawHeat() {
+  const [a, b] = selectedWeeks(), rows = cohorts.slice(a, b + 1), avg = avgOf(rows);
+  $("#back-heat").innerHTML = `<thead><tr><th>Week started</th><th>Players</th>${days.map(n => `<th>Day ${n}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map((r, k) => `<tr data-i="${a + k}" class="${a + k === pickWeek ? "sel" : ""}" tabindex="0"><td>${F.date(r.cohort_week)}</td><td class="num">${F.int(r.cohort_size)}</td>${days.map(n =>
+      heatCell(r["d" + n], `Week of ${F.date(r.cohort_week)}, day ${n}: ${r["d" + n] == null ? "" : (r["d" + n] * 100).toFixed(1)} out of 100`)).join("")}</tr>`).join("") +
+    `<tr class="avg"><td>All weeks shown</td><td class="num">${F.int(sum(rows.map(r => r.cohort_size)))}</td>${avg.map(v => `<td>${v == null ? "&middot;" : F.pct1(v)}</td>`).join("")}</tr></tbody>`;
+  showWeek();
+}
+const drawWeek = chart("back-week", host => {
+  const [a, b] = selectedWeeks(), avg = avgOf(cohorts.slice(a, b + 1)), r = cohorts[pickWeek];
+  barChart(host, {
+    cats: days.map(n => "Day " + n), height: 220,
+    groups: [{ name: "This week", color: C.a, values: days.map(n => r["d" + n] ?? 0) },
+             { name: "All weeks", color: C.muted, values: avg.map(v => v ?? 0) }],
+    yFmt: v => (v * 100).toFixed(0) + "%",
+    tip: ci => `<div class="t">Day ${days[ci]}</div>${tipRow(C.a, "This week", r["d" + days[ci]] == null ? "not yet" : F.pct1(r["d" + days[ci]]))}${tipRow(C.muted, "All weeks shown", avg[ci] == null ? "not yet" : F.pct1(avg[ci]))}`,
+  });
+});
+function showWeek() {
+  const [a, b] = selectedWeeks(), r = cohorts[pickWeek], avg = avgOf(cohorts.slice(a, b + 1));
+  const d7 = r.d7, diff = d7 == null || avg[2] == null ? null : d7 - avg[2];
+  detail($("#back-detail"), "You picked", `Week of ${F.date(r.cohort_week)}`,
+    diff == null ? "These players have not reached day 7 yet." :
+      `On day 7, ${(d7 * 100).toFixed(1)} out of 100 of these players came back. That is ${Math.abs(diff * 100) < 0.2 ? "about the same as" : diff > 0 ? "a bit better than" : "a bit worse than"} the other weeks.`,
+    [[F.int(r.cohort_size), "players started"], [r.d1 == null ? "not yet" : F.pct1(r.d1), "back on day 1"], [r.d30 == null ? "not yet" : F.pct1(r.d30), "back on day 30"]]);
+  legend($("#back-week-legend"), [["This week", C.a], ["All weeks shown", C.muted]]);
+  drawWeek();
+}
+for (const s of [bFrom, bTo]) s.addEventListener("change", drawHeat);
+const pickRow = tr => { if (!tr || tr.dataset.i == null) return; pickWeek = +tr.dataset.i; store.set("ga-pick-week", pickWeek); drawHeat(); };
+$("#back-heat").addEventListener("click", ev => pickRow(ev.target.closest("tr[data-i]")));
+$("#back-heat").addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pickRow(ev.target.closest("tr[data-i]")); } });
+$("#back-heat").addEventListener("pointermove", ev => { const t = ev.target.closest("td[data-tip]"); t ? showTip(t.dataset.tip, ev.clientX, ev.clientY) : hideTip(); });
+$("#back-heat").addEventListener("pointerleave", hideTip);
+if (!cohorts[pickWeek]) pickWeek = 0;
+drawHeat();
+
+/* ------------------------------------------------------------------ level 3: playing */
+let playDays = +(store.get("ga-period") || 0);
+legend($("#play-legend"), [["That month", C.c], ["That week", C.b], ["That day", C.a]], "line");
+const playRows = () => playDays ? daily.slice(-playDays) : daily;
+const drawActive = chart("play-active", host => {
+  const rows = playRows();
+  lineChart(host, {
+    x: rows.map(d => d.date), height: 280,
+    series: [{ name: "Month", color: C.c, values: rows.map(d => d.mau) },
+             { name: "Week", color: C.b, values: rows.map(d => d.wau) },
+             { name: "Day", color: C.a, values: rows.map(d => d.dau) }],
+    yFmt: F.short, xTicks: playDays && playDays <= 30 ? [0, 7, 14, 21, rows.length - 1] : monthTicks(rows), xFmt: d => F.date(d),
+    tipTitle: d => F.date(d) + ", 2020", tipFmt: v => F.int(v) + " players",
+  });
+});
+const drawSticky = chart("play-sticky", host => {
+  const rows = playRows(), vals = rows.map(d => d.dau / d.mau);
+  lineChart(host, {
+    x: rows.map(d => d.date), height: 280, yMax: Math.max(...vals) * 1.15,
+    series: [{ name: "Loyalty", color: C.a, values: vals }],
+    yFmt: v => (v * 100).toFixed(0) + "%", xTicks: [0, rows.length - 1], xFmt: d => F.date(d),
+    tipTitle: d => F.date(d) + ", 2020", tipFmt: v => (v * 100).toFixed(1) + " out of 100",
+  });
+});
+function setPeriod(nDays) {
+  playDays = nDays; store.set("ga-period", String(nDays));
+  for (const b of document.querySelectorAll("#play-all, #play-90, #play-30")) b.setAttribute("aria-pressed", String(+b.dataset.days === nDays));
+  const rows = playRows(), stick = sum(rows.map(d => d.dau)) / sum(rows.map(d => d.mau));
+  kpis($("#play-kpis"), [
+    ["Players on a normal day", F.int(sum(rows.map(d => d.dau)) / rows.length), "Average for this time"],
+    ["Players this month", F.int(rows[rows.length - 1].mau), "Played at least once in 30 days"],
+    ["Loyalty", F.pct1(stick), `${Math.round(stick * 100)} out of 100 monthly players play on a normal day`],
+    ["New players", F.int(sum(rows.map(d => d.new_players))), "Joined in this time"],
+  ]);
+  drawActive(); drawSticky();
+}
+for (const b of document.querySelectorAll("#play-all, #play-90, #play-30")) b.addEventListener("click", () => setPeriod(+b.dataset.days));
+setPeriod(playDays);
+
+const segs = DATA.segments;
+const KIND = {
+  "One-and-done": ["Tried once", "0 days back", "Played on their first day and never came back."],
+  "Tried it": ["Visitors", "1-3 days back", "Came back a few times, then stopped."],
+  "Regular": ["Regulars", "4-7 days back", "Came back about once or twice a week. They have the habit."],
+  "Core": ["Superfans", "8+ days back", "Came back 8 days or more. Nobody came back more than 13 of 30 days."],
+};
+let pickSeg = rememberPick("ga-pick-seg", 3);
+legend($("#play-seg-legend"), [["Share of players", C.muted], ["Share of all visits", C.a]]);
+const drawSeg = chart("play-seg", host => barChart(host, {
+  cats: segs.map(s => `${KIND[s.segment][0]}\n${KIND[s.segment][1]}`), height: 250,
+  groups: [{ name: "Players", color: C.muted, values: segs.map(s => s.share_of_players) },
+           { name: "Visits", color: C.a, values: segs.map(s => s.share_of_logins) }],
+  yFmt: v => (v * 100).toFixed(0) + "%", selected: pickSeg,
+  onSelect: ci => { pickSeg = ci; store.set("ga-pick-seg", ci); drawSeg(); showSeg(); },
+  tip: ci => `<div class="t">${KIND[segs[ci].segment][0]}</div>${tipRow(C.muted, "Out of 100 players", Math.round(segs[ci].share_of_players * 100))}${tipRow(C.a, "Out of 100 visits", Math.round(segs[ci].share_of_logins * 100))}`,
+}));
+function showSeg() {
+  const s = segs[pickSeg], k = KIND[s.segment];
+  detail($("#play-detail"), "Meet the", k[0], k[2] + ` They are ${Math.round(s.share_of_players * 100)} out of 100 new players, and they make ${Math.round(s.share_of_logins * 100)} out of 100 of all visits.`,
+    [[F.int(s.players), "players"], [F.num(s.avg_return_days, 1), "days back, on average"], [F.pct1(s.share_of_logins), "of all visits"]]);
+}
+showSeg();
+
+/* ------------------------------------------------------------------ level 4: spending */
+const tiers = DATA.tiers, payTiers = ["1-499", "500-1,999", "2,000-9,999", "10,000+"];
+const TIER = { "1-499": "Small buyers", "500-1,999": "Medium buyers", "2,000-9,999": "Big buyers", "10,000+": "Huge spenders" };
+const tier = (g, t) => tiers.find(r => r.testgroup === g && r.tier === t) || { players: 0, revenue: 0, share_of_group_revenue: 0 };
+function groupStats(g, withWhales) {
+  const rows = tiers.filter(r => r.testgroup === g && (withWhales || r.tier !== "10,000+"));
+  const players = sum(rows.map(r => r.players)), payers = sum(rows.filter(r => r.tier !== "Non-payer").map(r => r.players));
+  const revenue = sum(rows.map(r => r.revenue));
+  return { players, payers, revenue, conversion: payers / players, arpu: revenue / players, arppu: revenue / payers };
+}
+const whales = () => $("#spend-whales").checked;
+function drawSpendTable() {
+  const wh = whales(), a = groupStats("a", wh), b = groupStats("b", wh);
+  const rel = (x, y) => { const d = (y - x) / x; return Math.abs(d) < 0.0005 ? "same" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d * 100).toFixed(0) + "%"; };
+  const rows = [
+    ["Players", F.int(a.players), F.int(b.players), ""],
+    ["Players who bought", F.int(a.payers), F.int(b.payers), rel(a.payers, b.payers)],
+    ["Buy rate", "1 in " + Math.round(1 / a.conversion), "1 in " + Math.round(1 / b.conversion), rel(a.conversion, b.conversion)],
+    ["Money made", F.int(a.revenue), F.int(b.revenue), rel(a.revenue, b.revenue)],
+    ["Money per player", F.num(a.arpu), F.num(b.arpu), rel(a.arpu, b.arpu)],
+    ["Money per buyer", F.int(a.arppu), F.int(b.arppu), rel(a.arppu, b.arppu)],
+  ];
+  if (wh) rows.push(["A typical buyer spends", F.int(M.median_payer_revenue_a), F.int(M.median_payer_revenue_b), rel(M.median_payer_revenue_a, M.median_payer_revenue_b)]);
+  table($("#spend-table"), ["", "Shop A", "Shop B", "B vs A"], rows);
+  $("#spend-whale-note").textContent = wh
+    ? `Shop A had ${T.group_a_10k_payers} huge spenders who paid 10,000 or more. They made ${Math.round(T.group_a_10k_revenue_share * 100)} out of every 100 of shop A's money. Shop B had none.`
+    : "Without the huge spenders, shop B is far ahead. But first we need to check whether they belong in the test.";
+  const tests = [testRow("Buy rate", "Did more players buy something?",
+    `Shop B: ${(T.conversion.diff * 100).toFixed(3)} of 100 players`, `range ${(T.conversion.ci_low * 100).toFixed(3)} to ${(T.conversion.ci_high * 100).toFixed(3)} · ${F.p(T.conversion.p_value)}`, T.conversion.p_value < 0.05)];
+  if (wh) tests.push(
+    testRow("Money per player", "Did each player bring in more money?", `Shop B: ${F.signed(T.arpu.diff)} per player`,
+      `range ${F.signed(T.arpu.ci_low)} to ${F.signed(T.arpu.ci_high)} · ${F.p(T.arpu.p_value)}`, T.arpu.p_value < 0.05),
+    testRow("Money per buyer", "Did each buyer spend more?", `Shop B: ${F.signed(T.arppu.diff, 0)} per buyer`,
+      `range ${F.signed(T.arppu.ci_low, 0)} to ${F.signed(T.arppu.ci_high, 0)} · ${F.p(T.arppu.p_value)}`, T.arppu.p_value < 0.05));
+  else tests.push(
+    testRow("Money per player, no huge spenders", "Same question, with the 123 left out", `Shop B: ${F.signed(T.arpu_without_10k_payers.diff)} per player`,
+      `range ${F.signed(T.arpu_without_10k_payers.ci_low)} to ${F.signed(T.arpu_without_10k_payers.ci_high)} · ${F.p(T.arpu_without_10k_payers.p_value)}`, T.arpu_without_10k_payers.p_value < 0.05));
+  $("#spend-tests").innerHTML = tests.join("");
+}
+let tierMetric = "revenue";
+let pickTier = rememberPick("ga-pick-tier", 3);
+const shownTiers = () => payTiers.filter(t => whales() || t !== "10,000+");
+legend($("#spend-tier-legend"), [["Shop A", C.a], ["Shop B", C.b]]);
+const drawTiers = chart("spend-tiers", host => {
+  const shown = shownTiers();
+  barChart(host, {
+    cats: shown.map(t => `${TIER[t]}\n${t}`), height: 260,
+    groups: ["a", "b"].map(g => ({ name: "Shop " + g.toUpperCase(), color: C[g], values: shown.map(t => tier(g, t)[tierMetric]) })),
+    yFmt: F.short, selected: pickTier,
+    onSelect: ci => { pickTier = ci; store.set("ga-pick-tier", ci); drawTiers(); showTier(); },
+    tip: ci => `<div class="t">${TIER[shown[ci]]} (spent ${shown[ci]})</div>` +
+      ["a", "b"].map(g => tipRow(C[g], `Shop ${g.toUpperCase()}`, tierMetric === "revenue" ? F.int(tier(g, shown[ci]).revenue) + " money" : F.int(tier(g, shown[ci]).players) + " buyers")).join(""),
+  });
+});
+function showTier() {
+  const shown = shownTiers(); if (pickTier >= shown.length) pickTier = shown.length - 1;
+  const t = shown[pickTier], a = tier("a", t), b = tier("b", t);
+  const who = a.players && !b.players ? "Only shop A has players like this." : b.players && !a.players ? "Only shop B has players like this." : "";
+  detail($("#spend-detail"), "You picked", `${TIER[t]}`, `Players who spent ${t}. ${who}`,
+    [[F.int(a.players), "buyers in shop A"], [F.int(b.players), "buyers in shop B"],
+     [F.pct1(a.share_of_group_revenue), "of shop A's money"], [F.pct1(b.share_of_group_revenue), "of shop B's money"]]);
+}
+for (const b of document.querySelectorAll("#spend-rev, #spend-pay")) b.addEventListener("click", () => {
+  tierMetric = b.dataset.v;
+  for (const x of document.querySelectorAll("#spend-rev, #spend-pay")) x.setAttribute("aria-pressed", String(x === b));
+  drawTiers();
+});
+$("#spend-whales").addEventListener("change", () => { drawSpendTable(); showTier(); drawTiers(); });
+drawSpendTable(); showTier();
+
+const H = DATA.payer_hist, edge = i => H.edges[i];
+legend($("#spend-hist-legend"), [["Shop A", C.a], ["Shop B", C.b]]);
+const histCats = H.a.map((_, i) => { const p = [1, 10, 100, 1000, 10000].find(p => edge(i) <= p && edge(i + 1) > p); return p ? F.short(p) : ""; });
+chart("spend-hist", host => barChart(host, {
+  cats: histCats, height: 240, labelAt: i => histCats[i] !== "",
+  groups: [{ name: "A", color: C.a, values: H.a }, { name: "B", color: C.b, values: H.b }],
+  yFmt: F.short,
+  tip: ci => `<div class="t">Spent ${F.int(edge(ci))} to ${F.int(edge(ci + 1))}</div>${tipRow(C.a, "Shop A buyers", F.int(H.a[ci]))}${tipRow(C.b, "Shop B buyers", F.int(H.b[ci]))}`,
+}));
+
+/* ------------------------------------------------------------------ power-up lab */
+const yearPlayers = f.window.new_players / DATA.window_days * 365;
+const baseR7 = O.returned_within_7d;
+const offers = {
+  a: { name: "Shop A (the old one)", ...groupStats("a", true) },
+  b: { name: "Shop B (the new one)", ...groupStats("b", true) },
+  a_core: { name: "Shop A without its 123 huge spenders", ...groupStats("a", false) },
+};
+const W = { ret: $("#lab-return"), offer: $("#lab-offer"), conv: $("#lab-conv"), spend: $("#lab-spend") };
+$("#lab-volume").textContent = `About ${F.int(yearPlayers)} new players join each year.`;
+function project(s) {
+  const o = offers[s.offer], r7 = baseR7 + s.ret / 100;
+  // Buyers come from players who come back, at each shop's measured rate.
+  const payRate = o.conversion / baseR7 * (1 + s.conv / 100);
+  const returners = yearPlayers * r7, payers = returners * payRate, revenue = payers * o.arppu * (1 + s.spend / 100);
+  return { r7, returners, payers, revenue };
+}
+const state = () => ({ ret: +W.ret.value, offer: W.offer.value, conv: +W.conv.value, spend: +W.spend.value });
+const TODAY = { ret: 0, offer: "a", conv: 0, spend: 0 };
+function deltaHtml(now, then) {
+  const d = (now - then) / then;
+  if (Math.abs(d) < 0.0005) return `<span class="delta flat">Same as today</span>`;
+  return `<span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "▲ +" : "▼ −"}${Math.abs(d * 100).toFixed(1)}%</span>`;
+}
+function meter(now, then) {
+  const mx = Math.max(now, then) || 1;
+  return `<div class="meter"><div><span>Today</span><span class="track"><span class="fill" style="width:${(then / mx * 100).toFixed(1)}%;background:var(--axis)"></span></span></div>
+    <div><span>Your plan</span><span class="track"><span class="fill" style="width:${(now / mx * 100).toFixed(1)}%;background:var(--accent)"></span></span></div></div>`;
+}
+const pctLabel = v => v ? (v > 0 ? "+" : "−") + Math.abs(v) + "%" : "No change";
+function renderLab() {
+  const s = state(), p = project(s), b0 = project(TODAY);
+  $("#lab-return-out").textContent = s.ret ? `${Math.round(p.r7 * 1000) / 10} of 100` : `${Math.round(p.r7 * 1000) / 10} of 100 now`;
+  $("#lab-offer-out").textContent = `${F.int(offers[s.offer].arppu)} per buyer`;
+  $("#lab-conv-out").textContent = pctLabel(s.conv);
+  $("#lab-spend-out").textContent = pctLabel(s.spend);
+  const rows = [
+    ["Players who come back", p.returners, b0.returners, F.int],
+    ["Players who buy", p.payers, b0.payers, F.int],
+    ["Money made", p.revenue, b0.revenue, F.short],
+  ];
+  $("#lab-outcomes").innerHTML = rows.map(([label, now, then, fm]) =>
+    `<div class="outcome"><div class="outcome-top"><div><div class="label">${label}</div><div class="big">${fm(now)}</div></div>${deltaHtml(now, then)}</div>${meter(now, then)}</div>`).join("");
+  $("#lab-assumptions").innerHTML = [
+    `About ${F.int(yearPlayers)} new players a year: the 2020 joining rate (${F.int(f.window.new_players)} players in ${DATA.window_days} days).`,
+    `Today ${(baseR7 * 100).toFixed(1)} out of 100 new players come back in their first week. The first power-up adds to that.`,
+    "Only players who come back buy things. Each shop keeps the buy rate and money per buyer it had in the experiment.",
+    "Money made = players who buy × money per buyer.",
+    "The game data looks computer-made, so this is for practice and comparing ideas, not a promise.",
+  ].map(t => `<li>${esc(t)}</li>`).join("");
+  store.set("ga-lab", JSON.stringify(s));
+  $("#lab-status").textContent = "";
+}
+function planText() {
+  const s = state(), p = project(s), b0 = project(TODAY), pct = (n, o) => ((n - o) / o * 100).toFixed(1) + "%";
+  return [
+    "My game power-up plan",
+    `Week-one comeback: ${(p.r7 * 100).toFixed(1)} of 100 players (+${s.ret} more)`,
+    `Shop: ${offers[s.offer].name}. More buyers: ${pctLabel(s.conv)}. Bigger spending: ${pctLabel(s.spend)}`,
+    `Players who come back: ${F.int(p.returners)} (today ${F.int(b0.returners)}, ${pct(p.returners, b0.returners)})`,
+    `Players who buy: ${F.int(p.payers)} (today ${F.int(b0.payers)}, ${pct(p.payers, b0.payers)})`,
+    `Money made: ${F.int(p.revenue)} (today ${F.int(b0.revenue)}, ${pct(p.revenue, b0.revenue)})`,
+  ].join("\n");
+}
+for (const k of Object.values(W)) { k.addEventListener("input", renderLab); k.addEventListener("change", renderLab); }
+$("#lab-reset").addEventListener("click", () => { W.ret.value = 0; W.offer.value = "a"; W.conv.value = 0; W.spend.value = 0; renderLab(); });
+$("#lab-copy").addEventListener("click", () => {
+  const text = planText(), fall = $("#lab-copytext");
+  navigator.clipboard.writeText(text).then(() => {
+    fall.hidden = true; $("#lab-status").textContent = "Copied! Paste it anywhere.";
+  }).catch(() => {
+    fall.value = text; fall.hidden = false; fall.select(); $("#lab-status").textContent = "Copying is blocked here. Your plan is selected below.";
+  });
+});
+try {
+  const saved = JSON.parse(store.get("ga-lab") || "null");
+  if (saved && offers[saved.offer]) { W.ret.value = saved.ret; W.offer.value = saved.offer; W.conv.value = saved.conv; W.spend.value = saved.spend; }
+} catch {}
+renderLab();
+
+/* ------------------------------------------------------------------ live background: deep space */
+(function spaceBackground() {
+  const cv = $("#bg-space"), ctx = cv.getContext("2d");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TINTS = ["255,255,255", "255,255,255", "255,255,255", "255,214,214", "200,220,255", "214,255,240", "232,214,255"];
+  let w = 0, h = 0, t = 0, stars = [], meteors = [];
+  function resize() {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    w = innerWidth; h = innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.round(Math.min(420, w * h / 4200));
+    // Three depth layers: far stars are small and slow, near stars bigger and faster.
+    stars = Array.from({ length: n }, () => {
+      const layer = Math.random() < 0.6 ? 0 : Math.random() < 0.75 ? 1 : 2;
+      return { x: Math.random() * w, y: Math.random() * h, layer, r: [0.5, 0.9, 1.5][layer] * (0.7 + Math.random() * 0.6),
+               a: 0.35 + Math.random() * 0.6, tw: Math.random() * Math.PI * 2, tws: 0.01 + Math.random() * 0.03,
+               c: TINTS[Math.floor(Math.random() * TINTS.length)] };
+    });
+  }
+  function meteor() {
+    const fromTop = Math.random() < 0.7;
+    meteors.push({ x: fromTop ? Math.random() * w * 0.8 + w * 0.2 : w + 20, y: fromTop ? -20 : Math.random() * h * 0.4,
+                   vx: -(6 + Math.random() * 6), vy: 3 + Math.random() * 3, life: 1, len: 90 + Math.random() * 120 });
+  }
+  function planet() {
+    const px = w * 0.86, py = h * 0.8, pr = Math.max(60, Math.min(w, h) * 0.11);
+    const g = ctx.createRadialGradient(px - pr * 0.4, py - pr * 0.4, pr * 0.1, px, py, pr);
+    g.addColorStop(0, "rgba(140, 90, 255, 0.55)"); g.addColorStop(0.6, "rgba(90, 40, 160, 0.35)"); g.addColorStop(1, "rgba(255, 71, 71, 0.18)");
+    ctx.save();
+    ctx.shadowColor = "rgba(140, 90, 255, 0.6)"; ctx.shadowBlur = 40;
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.translate(px, py); ctx.rotate(-0.35 + Math.sin(t * 0.002) * 0.03);
+    ctx.strokeStyle = "rgba(245, 184, 46, 0.35)"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, 0, pr * 1.75, pr * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, 0, pr * 2.05, pr * 0.5, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    planet();
+    for (const s of stars) {
+      const a = s.a * (0.6 + 0.4 * Math.sin(s.tw));
+      ctx.fillStyle = `rgba(${s.c},${a})`;
+      if (s.layer === 2) { ctx.shadowColor = `rgba(${s.c},${a})`; ctx.shadowBlur = 6; }
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    for (const m of meteors) {
+      const k = Math.hypot(m.vx, m.vy), tx = m.x - m.vx / k * m.len, ty = m.y - m.vy / k * m.len;
+      const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+      g.addColorStop(0, `rgba(255,255,255,${0.9 * m.life})`); g.addColorStop(0.3, `rgba(255,120,120,${0.45 * m.life})`); g.addColorStop(1, "rgba(255,71,71,0)");
+      ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+    }
+  }
+  function tick() {
+    if (!document.hidden) {
+      t++;
+      for (const s of stars) {
+        s.x += [0.02, 0.06, 0.14][s.layer]; s.y += [0.01, 0.025, 0.06][s.layer]; s.tw += s.tws;
+        if (s.x > w + 2) s.x = -2; if (s.y > h + 2) s.y = -2;
+      }
+      for (const m of meteors) { m.x += m.vx; m.y += m.vy; m.life -= 0.012; }
+      meteors = meteors.filter(m => m.life > 0 && m.x > -200 && m.y < h + 200);
+      if (meteors.length < 2 && Math.random() < 0.006) meteor();
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+  resize(); draw();
+  addEventListener("resize", () => { resize(); draw(); });
+  if (!still) requestAnimationFrame(tick);
+})();
+
+/* ------------------------------------------------------------------ Neon Dash (mini game) */
+const Game = (() => {
+  const arcade = $("#arcade"), cv = $("#game"), ctx = cv.getContext("2d");
+  const W = 360, H = 480, RW = 252, RX = (W - RW) / 2, LW = RW / 3, CW = 40, CH = 64, PY = H - 100;
+  const PAINT = ["#ff4747", "#d95926", "#199e70", "#8c5aff", "#f5b82e"];
+  let s, raf = 0, best = +(store.get("ga-best") || 0), opener = null;
+  const laneX = l => RX + LW * l + LW / 2;
+  function reset() { s = { lane: 1, x: laneX(1), cars: [], speed: 4, dist: 0, over: false, dash: 0, gap: 60 }; }
+  function car(x, y, color, me) {
+    ctx.save(); ctx.translate(x - CW / 2, y);
+    ctx.shadowColor = color; ctx.shadowBlur = me ? 18 : 10;
+    ctx.fillStyle = color; ctx.beginPath(); ctx.roundRect(0, 0, CW, CH, 9); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(8, 8, 18, 0.85)";
+    ctx.beginPath(); ctx.roundRect(6, me ? 12 : 30, CW - 12, 16, 4); ctx.fill();
+    ctx.fillStyle = me ? "#fff6c8" : "#ff2a2a";
+    const ly = me ? 2 : CH - 6;
+    ctx.fillRect(5, ly, 8, 4); ctx.fillRect(CW - 13, ly, 8, 4);
+    ctx.restore();
+  }
+  function draw() {
+    ctx.fillStyle = "#0a0a16"; ctx.fillRect(0, 0, W, H);
+    for (let y = -40 + (s.dash % 40); y < H; y += 40) {             // roadside stripes
+      ctx.fillStyle = "rgba(140, 90, 255, 0.18)"; ctx.fillRect(0, y, RX - 6, 20); ctx.fillRect(RX + RW + 6, y, RX - 6, 20);
+    }
+    ctx.fillStyle = "#15152a"; ctx.fillRect(RX, 0, RW, H);
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ff4747"; ctx.shadowColor = "#ff4747"; ctx.fillRect(RX - 4, 0, 4, H);
+    ctx.fillStyle = "#3987e5"; ctx.shadowColor = "#3987e5"; ctx.fillRect(RX + RW, 0, 4, H);
+    ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    for (const l of [1, 2]) for (let y = -40 + (s.dash % 40); y < H; y += 40) ctx.fillRect(RX + LW * l - 2, y, 4, 22);
+    for (const c of s.cars) car(laneX(c.lane), c.y, c.color, false);
+    car(s.x, PY, "#3987e5", true);
+    ctx.fillStyle = "#ffffff"; ctx.font = "800 22px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+    ctx.textAlign = "left"; ctx.fillText("SCORE " + Math.floor(s.dist / 10), 12, 28);
+    ctx.textAlign = "right"; ctx.fillStyle = "#f5b82e"; ctx.fillText("BEST " + best, W - 12, 28);
+    if (s.over) {
+      ctx.fillStyle = "rgba(5, 5, 12, 0.74)"; ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = "center"; ctx.fillStyle = "#ff4747"; ctx.font = "800 54px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+      ctx.fillText("CRASH!", W / 2, H / 2 - 30);
+      ctx.fillStyle = "#ffffff"; ctx.font = "700 24px 'Barlow Condensed', 'Arial Narrow', sans-serif";
+      ctx.fillText("Score " + Math.floor(s.dist / 10) + (Math.floor(s.dist / 10) >= best && best > 0 ? "  New best!" : ""), W / 2, H / 2 + 10);
+      ctx.fillStyle = "#c7ccd6"; ctx.font = "500 16px 'Barlow', sans-serif";
+      ctx.fillText("Tap or press Space to race again", W / 2, H / 2 + 44);
+    }
+  }
+  function step() {
+    if (!s.over) {
+      s.speed = Math.min(13, s.speed + 0.004); s.dist += s.speed; s.dash += s.speed;
+      s.x += (laneX(s.lane) - s.x) * 0.35;
+      s.gap -= s.speed;
+      if (s.gap <= 0) {
+        const lanes = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, Math.random() < 0.3 && s.speed > 6 ? 2 : 1);
+        for (const lane of lanes) s.cars.push({ lane, y: -CH - 10, color: PAINT[Math.floor(Math.random() * PAINT.length)] });
+        s.gap = 150 + Math.random() * 110;
+      }
+      for (const c of s.cars) c.y += s.speed * 0.75;
+      s.cars = s.cars.filter(c => c.y < H + 10);
+      for (const c of s.cars) {
+        if (Math.abs(laneX(c.lane) - s.x) < CW - 6 && c.y + CH > PY + 6 && c.y < PY + CH - 6) {
+          s.over = true;
+          const score = Math.floor(s.dist / 10);
+          if (score > best) { best = score; store.set("ga-best", String(best)); }
+        }
+      }
+    }
+    draw();
+    raf = requestAnimationFrame(step);
+  }
+  const left = () => { if (!s.over) s.lane = Math.max(0, s.lane - 1); };
+  const right = () => { if (!s.over) s.lane = Math.min(2, s.lane + 1); };
+  function open() {
+    opener = document.activeElement;
+    arcade.hidden = false; reset(); cancelAnimationFrame(raf); raf = requestAnimationFrame(step);
+    $("#arcade-close").focus();
+  }
+  function close() {
+    cancelAnimationFrame(raf); arcade.hidden = true;
+    if (opener && opener.focus) opener.focus();
+  }
+  document.addEventListener("keydown", ev => {
+    if (arcade.hidden) return;
+    if (["ArrowLeft", "a", "A"].includes(ev.key)) { ev.preventDefault(); left(); }
+    else if (["ArrowRight", "d", "D"].includes(ev.key)) { ev.preventDefault(); right(); }
+    else if ((ev.key === " " || ev.key === "Enter") && s.over && document.activeElement?.id !== "arcade-close") { ev.preventDefault(); reset(); }
+    else if (ev.key === "Escape") close();
+  });
+  cv.addEventListener("pointerdown", ev => {
+    if (s.over) { reset(); return; }
+    const r = cv.getBoundingClientRect();
+    (ev.clientX - r.left < r.width / 2 ? left : right)();
+  });
+  $("#go-left").addEventListener("click", left);
+  $("#go-right").addEventListener("click", right);
+  $("#arcade-close").addEventListener("click", close);
+  arcade.addEventListener("click", ev => { if (ev.target === arcade) close(); });
+  return { open };
+})();
+
+/* ------------------------------------------------------------------ Coach (built-in helper) */
+(function coach() {
+  const panel = $("#coach"), openBtn = $("#coach-open"), chat = $("#chat"), input = $("#ask-input");
+  const quick = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const pct = v => Math.round(v * 100);
+  const shopA = groupStats("a", true), shopB = groupStats("b", true);
+  const topics = [
+    { keys: ["what is the game", "what's the game", "whats the game", "what game", "which game", "game is this", "game this", "data about", "game called", "about the game", "name of the game", "what is this"],
+      answer: () => ["The numbers come from two games. Levels 2 to 4 use a mobile game from the <b>Gamelytics</b> dataset on Kaggle; its name isn't shared, and the data looks computer-made, so it's practice data. The gate experiment on Level 1 comes from <b>Cookie Cats</b>, a real match-3 puzzle game by Tactile Entertainment where you line up cookies to feed hungry cats.", [{ label: "See Level 1", go: "start" }]] },
+    { local: true, keys: ["bored", "play a game", "play the game", "play neon", "let's play", "lets play", "let's race", "race", "racing", "neon dash", "mini game", "minigame"],
+      answer: () => ["Let's race! In Neon Dash you dodge traffic for as long as you can. Your best score is saved.", [{ label: "Play Neon Dash", game: true }]] },
+    { keys: ["problem", "worst", "biggest", "issue", "wrong", "bad"], answer: () => [`The biggest problem: <b>${nNever} out of 100</b> new players play once and never come back. The ones who do come back all do it within a week.`, [{ label: "See Level 1", go: "start" }]] },
+    { keys: ["shop", "money", "revenue", "buy", "spend", "pay", "arpu", "win"], answer: () => [`Shop B made a little more money per player (${F.num(shopB.arpu)} vs ${F.num(shopA.arpu)}), but that <b>could be luck</b>. Shop A's money mostly came from ${T.group_a_10k_payers} huge spenders. A typical shop B buyer spent ${F.int(M.median_payer_revenue_b)}; a typical shop A buyer spent ${F.int(M.median_payer_revenue_a)}.`, [{ label: "See Level 4", go: "spend" }]] },
+    { keys: ["superfan", "fan", "segment", "kind", "loyal", "regular", "visitor"], answer: () => [`Superfans came back 8 or more days in their first month. They're only ${pct(E.segments.Core.share_of_players)} out of 100 new players, but they make ${pct(E.segments.Core.share_of_logins)} out of 100 of all visits.`, [{ label: "Meet them on Level 3", go: "play" }]] },
+    { keys: ["gate", "level 30", "level 40", "cookie", "wait"], answer: () => [`In Cookie Cats, putting the first gate at level 40 instead of 30 meant fewer players came back a week later: ${(O.gate_test.d7.rate_b * 100).toFixed(1)} vs ${(O.gate_test.d7.rate_a * 100).toFixed(1)} out of 100. That's a <b>real difference</b>, so keep it at 30.`, [{ label: "See the experiment", go: "start" }]] },
+    { keys: ["come back", "retention", "return", "day 1", "day 7", "day 30", "next day"], answer: () => [`Out of 100 new players, about ${(R.d1 * 100).toFixed(0)} play again on day 1, ${(R.d7 * 100).toFixed(0)} on day 7 and ${(R.d30 * 100).toFixed(0)} on day 30. The busiest comeback day is day ${R.peak_day}.`, [{ label: "See Level 2", go: "back" }]] },
+    { keys: ["daily", "each day", "how many play", "dau", "active", "players play"], answer: () => [`On a normal day lately, about <b>${F.int(E.dau_last30_avg)}</b> people play. About ${pct(E.stickiness_last30_avg)} out of 100 of this month's players show up on any given day.`, [{ label: "See Level 3", go: "play" }]] },
+    { keys: ["lab", "what if", "power", "plan", "improve", "better"], answer: () => ["In the Power-up lab you slide power-ups, like more players coming back or a different shop, and see players, buyers and money for a whole year.", [{ label: "Open the lab", go: "lab" }]] },
+    { keys: ["review", "reviews", "players say", "complain", "complaint", "feedback", "stars"],
+      answer: () => ["I read 25,719 Google Play reviews of 9 match-3 games. The biggest complaints: levels that feel too hard (4 times more common in 1-star reviews than 5-star), bugs, lost progress, stingy rewards, prices and ads. The thing players love most is that the game is <b>fun and relaxing</b>.", []] },
+    { keys: ["data", "where", "source", "real", "kaggle"], answer: () => ["The numbers come from two free Kaggle datasets: Gamelytics (1 million players) and Cookie Cats (90,189 players). Cookie Cats is a real game. The Gamelytics data looks computer-made, so treat it as practice data.", []] },
+    { keys: ["hi", "hello", "hey", "yo"], answer: () => ["Hi! Ask me anything about the players in this game, or tap a question below.", []] },
+    { keys: ["help", "what can", "who are you"], answer: () => ["I'm Coach. I know every number on this page. Ask about players coming back, the shops, superfans or the gate experiment, or say you're bored and we'll race.", []] },
+  ];
+  const chips = ["Biggest problem?", "What game is this?", "Which shop wins?", "Who are superfans?", "Do players come back?", "I'm bored, let's play"];
+  function say(html, acts, who) {
+    const m = document.createElement("div");
+    m.className = "msg " + who;
+    m.innerHTML = html + (acts && acts.length ? `<div class="acts">${acts.map(a =>
+      a.game ? `<button type="button" class="play" data-game="1">${esc(a.label)}</button>`
+             : `<button type="button" data-goto="${a.go}">${esc(a.label)}</button>`).join("")}</div>` : "");
+    chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+  }
+  function reply(text) {
+    const q = text.toLowerCase();
+    const hit = topics.find(t => t.keys.some(k => new RegExp("\\b" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(q)));
+    const [html, acts] = hit ? hit.answer()
+      : ["I only know about this dashboard. Try asking about players coming back, the shops, superfans, or say you're bored.", []];
+    // Games and greetings stay local; everything else goes to the API when the proxy is set up.
+    if (COACH_API && !(hit && hit.local)) { askApi(text, html, acts); return; }
+    setTimeout(() => { say(html, acts, "bot"); remember(text, html); }, quick ? 320 : 0);
+  }
+  const history = [];
+  const plain = html => { const d = document.createElement("div"); d.innerHTML = html; return d.textContent; };
+  function remember(q, html) { history.push({ role: "user", content: q }, { role: "assistant", content: plain(html) }); history.splice(0, Math.max(0, history.length - 6)); }
+  async function askApi(text, fallbackHtml, acts) {
+    const m = document.createElement("div"); m.className = "msg bot"; m.textContent = "Coach is thinking…"; chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+    try {
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
+      const res = await fetch(COACH_API, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, history }), signal: ctl.signal });
+      clearTimeout(timer);
+      const body = await res.json();
+      if (!res.ok || !body.answer) throw new Error(body.error || res.status);
+      const html = esc(body.answer).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+      m.remove(); say(html, acts, "bot"); remember(text, html);
+    } catch {
+      m.remove(); say(fallbackHtml, acts, "bot"); remember(text, fallbackHtml);
+    }
+  }
+  function ask(text) { if (!text.trim()) return; say(esc(text), [], "me"); reply(text); }
+  function open() {
+    panel.hidden = false; openBtn.setAttribute("aria-expanded", "true");
+    if (!chat.childElementCount)
+      say(`Hi, I'm <b>Coach</b>! I can explain anything on this page. Fun fact: if 100 players join, about ${nNever} leave after day one. Want to know why, or want to play a quick race?`,
+        [{ label: "Play Neon Dash", game: true }], "bot");
+    input.focus();
+  }
+  function close() { panel.hidden = true; openBtn.setAttribute("aria-expanded", "false"); openBtn.focus(); }
+  if (COACH_API) $("#coach-mode").textContent = "Live answers · uses this page's numbers";
+  $("#chips").innerHTML = chips.map(c => `<button type="button">${esc(c)}</button>`).join("");
+  $("#chips").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) ask(b.textContent); });
+  $("#ask").addEventListener("submit", ev => { ev.preventDefault(); ask(input.value); input.value = ""; });
+  openBtn.addEventListener("click", () => panel.hidden ? open() : close());
+  $("#coach-close").addEventListener("click", close);
+  chat.addEventListener("click", ev => { if (ev.target.closest("[data-game]")) Game.open(); });
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !panel.hidden && $("#arcade").hidden) close(); });
+})();
+
+/* ------------------------------------------------------------------ level menu */
+const TABS = ["home", "start", "back", "play", "spend", "lab"];
+function showTab(id, focus) {
+  if (!TABS.includes(id)) id = "home";
+  for (const t of TABS) {
+    $("#p-" + t).hidden = t !== id;
+    const b = $("#tab-" + t); b.setAttribute("aria-selected", String(t === id)); b.tabIndex = t === id ? 0 : -1;
+  }
+  if (focus) $("#tab-" + id).focus();
+  store.set("ga-tab", id);
+  try { history.replaceState(null, "", "#" + id); } catch {}
+  hideTip();
+}
+for (const b of document.querySelectorAll(".tab")) b.addEventListener("click", () => showTab(b.dataset.tab));
+$(".tablist").addEventListener("keydown", ev => {
+  const i = TABS.indexOf(document.activeElement?.dataset?.tab);
+  if (i < 0 || !["ArrowLeft", "ArrowRight"].includes(ev.key)) return;
+  showTab(TABS[(i + (ev.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length], true);
+});
+document.addEventListener("click", ev => {
+  const go = ev.target.closest("[data-goto]");
+  if (go) { showTab(go.dataset.goto); scrollTo({ top: 0 }); }
+});
+showTab((location.hash || "").slice(1) || store.get("ga-tab") || "home");
+</script>
+
+</body>
+</html>

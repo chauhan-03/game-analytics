@@ -1,0 +1,45 @@
+table kpi_summary
+
+	measure 'Conversion Test p-value' = CALCULATE ( MAX ( kpi_summary[value] ), kpi_summary[metric] = "tests.conversion.p_value" )
+		formatString: 0.000
+
+	measure 'ARPU Test p-value' = CALCULATE ( MAX ( kpi_summary[value] ), kpi_summary[metric] = "tests.arpu.p_value" )
+		formatString: 0.000
+
+	measure 'Gate D7 Test p-value' = CALCULATE ( MAX ( kpi_summary[value] ), kpi_summary[metric] = "gate_test.d7.p_value" )
+		formatString: 0.000
+
+	column area
+		dataType: string
+		summarizeBy: none
+		sourceColumn: area
+
+	column metric
+		dataType: string
+		summarizeBy: none
+		sourceColumn: metric
+
+	column value
+		dataType: double
+		formatString: #,0.00
+		summarizeBy: sum
+		sourceColumn: value
+
+	partition kpi_summary = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        if Text.StartsWith(DataFolder, "http")
+				            then Web.Contents(DataFolder, [RelativePath = "kpi_summary.csv"])
+				            else File.Contents(DataFolder & "kpi_summary.csv"),
+				        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {
+				        {"area", type text},
+				        {"metric", type text},
+				        {"value", type number}
+				    }, "en-US")
+				in
+				    Typed

@@ -1,0 +1,144 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "d51b4727f29077d759b7",
+  "position": {
+    "x": 16,
+    "y": 128,
+    "z": 5000,
+    "width": 620,
+    "height": 300,
+    "tabOrder": 5000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "testgroup"
+                }
+              },
+              "queryRef": "ab_test_players.testgroup",
+              "nativeQueryRef": "testgroup"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "AB Players"
+                }
+              },
+              "queryRef": "ab_test_players.AB Players",
+              "nativeQueryRef": "AB Players"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "Payers"
+                }
+              },
+              "queryRef": "ab_test_players.Payers",
+              "nativeQueryRef": "Payers"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "Conversion"
+                }
+              },
+              "queryRef": "ab_test_players.Conversion",
+              "nativeQueryRef": "Conversion"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "ARPU"
+                }
+              },
+              "queryRef": "ab_test_players.ARPU",
+              "nativeQueryRef": "ARPU"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "ARPPU"
+                }
+              },
+              "queryRef": "ab_test_players.ARPPU",
+              "nativeQueryRef": "ARPPU"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ab_test_players"
+                    }
+                  },
+                  "Property": "Share of Revenue from 10k+ Payers"
+                }
+              },
+              "queryRef": "ab_test_players.Share of Revenue from 10k+ Payers",
+              "nativeQueryRef": "Share of Revenue from 10k+ Payers"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Offer set A vs B'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

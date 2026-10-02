@@ -1,0 +1,77 @@
+table review_themes
+
+	measure 'Theme Share of Negative Reviews' = SUM ( review_themes[share_of_negative] )
+		formatString: 0.0%
+
+	measure 'Theme Share of Positive Reviews' = SUM ( review_themes[share_of_positive] )
+		formatString: 0.0%
+
+	column theme
+		dataType: string
+		summarizeBy: none
+		sourceColumn: theme
+
+	column reviews
+		dataType: int64
+		formatString: #,0
+		summarizeBy: sum
+		sourceColumn: reviews
+
+	column share_of_reviews
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: share_of_reviews
+
+	column avg_stars
+		dataType: double
+		formatString: #,0.00
+		summarizeBy: sum
+		sourceColumn: avg_stars
+
+	column share_of_negative
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: share_of_negative
+
+	column share_of_positive
+		dataType: double
+		formatString: 0.0%
+		summarizeBy: none
+		sourceColumn: share_of_positive
+
+	column negative_lift
+		dataType: double
+		formatString: #,0.00
+		summarizeBy: sum
+		sourceColumn: negative_lift
+
+	column verdict
+		dataType: string
+		summarizeBy: none
+		sourceColumn: verdict
+
+	partition review_themes = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(
+				        if Text.StartsWith(DataFolder, "http")
+				            then Web.Contents(DataFolder, [RelativePath = "review_themes.csv"])
+				            else File.Contents(DataFolder & "review_themes.csv"),
+				        [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]
+				    ),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {
+				        {"theme", type text},
+				        {"reviews", Int64.Type},
+				        {"share_of_reviews", type number},
+				        {"avg_stars", type number},
+				        {"share_of_negative", type number},
+				        {"share_of_positive", type number},
+				        {"negative_lift", type number},
+				        {"verdict", type text}
+				    }, "en-US")
+				in
+				    Typed

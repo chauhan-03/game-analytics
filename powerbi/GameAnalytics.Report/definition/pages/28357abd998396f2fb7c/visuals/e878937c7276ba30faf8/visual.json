@@ -1,0 +1,60 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "e878937c7276ba30faf8",
+  "position": {
+    "x": 772.0,
+    "y": 16,
+    "z": 4000,
+    "width": 240.0,
+    "height": 96,
+    "tabOrder": 4000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "cookie_cats_players"
+                    }
+                  },
+                  "Property": "Gate 40 vs 30 D7 (pp)"
+                }
+              },
+              "queryRef": "cookie_cats_players.Gate 40 vs 30 D7 (pp)",
+              "nativeQueryRef": "Gate 40 vs 30 D7 (pp)"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Gate 40 vs 30 D7 (pp)'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -1,0 +1,137 @@
+// Power BI measures for the Game Analytics dashboard.
+// Create each one with Modeling > New measure. Tables are the CSVs in outputs/powerbi,
+// loaded with their file names (daily_activity, new_players, ...).
+// Definitions match src/metrics.py; tests/ check the Python side against the raw data.
+
+
+// ============================================================ Engagement  (daily_activity)
+
+Avg DAU = AVERAGE ( daily_activity[dau] )
+
+Avg MAU = AVERAGE ( daily_activity[mau] )
+
+Latest MAU =
+VAR lastDay = MAX ( daily_activity[date] )
+RETURN CALCULATE ( SUM ( daily_activity[mau] ), daily_activity[date] = lastDay )
+
+Stickiness = DIVIDE ( SUM ( daily_activity[dau] ), SUM ( daily_activity[mau] ) )
+
+New Players = SUM ( daily_activity[new_players] )
+
+Returning Share of DAU =
+DIVIDE ( SUM ( daily_activity[returning_players] ), SUM ( daily_activity[dau] ) )
+
+
+// ============================================================ Retention
+
+// Weekly cohort matrix: put cohort_week on rows, day_n on columns, this in values,
+// then Conditional formatting > Background color.
+Cohort Retention =
+DIVIDE ( SUM ( cohort_retention[retained] ), SUM ( cohort_retention[cohort_size] ) )
+
+// Retention curve: day_n on the x-axis.
+Day-N Retention =
+DIVIDE ( SUM ( retention_curve[retained] ), SUM ( retention_curve[eligible] ) )
+
+// The new_players table holds only players with a full 30 days, so these three
+// read slightly differently from the curve, which uses every eligible player.
+Players (30-day window) = COUNTROWS ( new_players )
+
+D1 Retention =
+DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[active_d1] = TRUE () ),
+         [Players (30-day window)] )
+
+D7 Retention =
+DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[active_d7] = TRUE () ),
+         [Players (30-day window)] )
+
+D30 Retention =
+DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[active_d30] = TRUE () ),
+         [Players (30-day window)] )
+
+
+// ============================================================ Onboarding
+
+Never Returned % =
+DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[return_days] = 0 ),
+         [Players (30-day window)] )
+
+Returned Within 7 Days % =
+DIVIDE ( CALCULATE ( COUNTROWS ( new_players ), new_players[first_return_day] <= 7,
+                     NOT ISBLANK ( new_players[first_return_day] ) ),
+         [Players (30-day window)] )
+
+CC Players = COUNTROWS ( cookie_cats_players )
+
+CC D1 Retention =
+DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[retention_1] = TRUE () ), [CC Players] )
+
+CC D7 Retention =
+DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[retention_7] = TRUE () ), [CC Players] )
+
+CC Reached 30 Rounds % =
+DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[sum_gamerounds] >= 30 ), [CC Players] )
+
+CC Under 10 Rounds % =
+DIVIDE ( CALCULATE ( [CC Players], cookie_cats_players[sum_gamerounds] < 10 ), [CC Players] )
+
+// Percentage points: negative means the gate at level 40 retained fewer players.
+Gate 40 vs 30 D7 (pp) =
+CALCULATE ( [CC D7 Retention], cookie_cats_players[version] = "gate_40" )
+    - CALCULATE ( [CC D7 Retention], cookie_cats_players[version] = "gate_30" )
+
+
+// ============================================================ Monetization  (ab_test_players)
+
+AB Players = COUNTROWS ( ab_test_players )
+
+Payers = CALCULATE ( [AB Players], ab_test_players[is_payer] = TRUE () )
+
+Conversion = DIVIDE ( [Payers], [AB Players] )
+
+Revenue = SUM ( ab_test_players[revenue] )
+
+ARPU = DIVIDE ( [Revenue], [AB Players] )
+
+ARPPU = DIVIDE ( [Revenue], [Payers] )
+
+Share of Revenue from 10k+ Payers =
+DIVIDE ( CALCULATE ( [Revenue], ab_test_players[revenue_tier] = "10,000+" ), [Revenue] )
+
+ARPU Lift B vs A =
+VAR a = CALCULATE ( [ARPU], ab_test_players[testgroup] = "a" )
+VAR b = CALCULATE ( [ARPU], ab_test_players[testgroup] = "b" )
+RETURN DIVIDE ( b - a, a )
+
+Conversion Lift B vs A =
+VAR a = CALCULATE ( [Conversion], ab_test_players[testgroup] = "a" )
+VAR b = CALCULATE ( [Conversion], ab_test_players[testgroup] = "b" )
+RETURN DIVIDE ( b - a, a )
+
+
+// ============================================================ Test results  (kpi_summary)
+
+// One measure per statistic, e.g. for a card:
+Conversion Test p-value =
+CALCULATE ( MAX ( kpi_summary[value] ), kpi_summary[metric] = "tests.conversion.p_value" )
+
+ARPU Test p-value =
+CALCULATE ( MAX ( kpi_summary[value] ), kpi_summary[metric] = "tests.arpu.p_value" )
+
+Gate D7 Test p-value =
+CALCULATE ( MAX ( kpi_summary[value] ), kpi_summary[metric] = "gate_test.d7.p_value" )
+
+
+// ============================================================ Player voice  (review_games, review_themes)
+
+Reviews Analyzed = SUM ( review_games[reviews] )
+
+Avg Review Stars =
+DIVIDE ( SUMX ( review_games, review_games[avg_stars] * review_games[reviews] ), [Reviews Analyzed] )
+
+Share of 1-2 Star Reviews =
+DIVIDE ( SUMX ( review_games, review_games[share_negative] * review_games[reviews] ), [Reviews Analyzed] )
+
+Theme Share of Negative Reviews = SUM ( review_themes[share_of_negative] )
+
+Theme Share of Positive Reviews = SUM ( review_themes[share_of_positive] )
